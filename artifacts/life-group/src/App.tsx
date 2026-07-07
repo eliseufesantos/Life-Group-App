@@ -17,6 +17,8 @@ import Discipleship from "@/pages/discipleship";
 import Invites from "@/pages/invites";
 import Profile from "@/pages/profile";
 import Settings from "@/pages/settings";
+import Calendar from "@/pages/calendar";
+import Board from "@/pages/board";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,8 @@ function Router() {
           <Layout>
             <Switch>
               <Route path="/" component={HomeDashboard} />
+              <Route path="/mural" component={Board} />
+              <Route path="/calendario" component={Calendar} />
               <Route path="/membros" component={Members} />
               <Route path="/membros/:id" component={MemberDetail} />
               <Route path="/discipulado" component={Discipleship} />

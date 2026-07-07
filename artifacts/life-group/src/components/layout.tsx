@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Users, HeartHandshake, Link as LinkIcon, Settings, User } from "lucide-react";
+import { Home, Users, HeartHandshake, Link as LinkIcon, Settings, User, CalendarDays, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGetCurrentUser } from "@workspace/api-client-react";
 
@@ -11,6 +11,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: "/", icon: Home, label: "Início" },
+    { href: "/mural", icon: LayoutDashboard, label: "Mural" },
+    { href: "/calendario", icon: CalendarDays, label: "Calendário" },
     { href: "/membros", icon: Users, label: "Membros" },
     { href: "/discipulado", icon: HeartHandshake, label: "Discipulado" },
     ...(isLeaderOrAux ? [{ href: "/convites", icon: LinkIcon, label: "Convites" }] : []),

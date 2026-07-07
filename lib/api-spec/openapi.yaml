@@ -16,6 +16,12 @@ tags:
     description: Members and guests
   - name: discipleship
     description: Discipleship relationships
+  - name: calendar
+    description: Calendar (recurring weekly meeting + free events)
+  - name: board
+    description: Mural (announcements, polls, weekly tasks, photos)
+  - name: storage
+    description: Object storage upload and serving endpoints
 paths:
   /healthz:
     get:
@@ -449,6 +455,552 @@ paths:
               schema:
                 $ref: "#/components/schemas/OkResult"
 
+  /calendar/recurrence:
+    get:
+      operationId: getRecurrence
+      tags: [calendar]
+      summary: Get the weekly meeting recurrence configuration
+      responses:
+        "200":
+          description: Recurrence config (null fields if not configured)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecurrenceConfig"
+    put:
+      operationId: setRecurrence
+      tags: [calendar]
+      summary: Configure the weekly meeting (day, time, location)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecurrenceInput"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecurrenceConfig"
+
+  /calendar/next-meeting:
+    get:
+      operationId: getNextMeeting
+      tags: [calendar]
+      summary: Get the next weekly meeting occurrence (with overrides applied)
+      responses:
+        "200":
+          description: Next meeting info (configured=false if recurrence not set)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NextMeeting"
+
+  /calendar/events:
+    get:
+      operationId: listCalendarEvents
+      tags: [calendar]
+      summary: List calendar events in a period (generated meeting occurrences + free events)
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      responses:
+        "200":
+          description: Events in the period
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarEvent"
+    post:
+      operationId: createEvent
+      tags: [calendar]
+      summary: Create a free event (leader/auxiliary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventInput"
+      responses:
+        "201":
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEvent"
+
+  /calendar/events/{id}:
+    patch:
+      operationId: updateEvent
+      tags: [calendar]
+      summary: Update a free event (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventUpdate"
+      responses:
+        "200":
+          description: Updated event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEvent"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteEvent
+      tags: [calendar]
+      summary: Delete a free event (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /calendar/occurrences/{date}:
+    put:
+      operationId: overrideOccurrence
+      tags: [calendar]
+      summary: Adjust a single weekly meeting occurrence (time/location/cancel) without changing the recurrence
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OccurrenceOverrideInput"
+      responses:
+        "200":
+          description: Occurrence override saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEvent"
+        "400":
+          description: Date is not a meeting occurrence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: clearOccurrenceOverride
+      tags: [calendar]
+      summary: Remove the override of a meeting occurrence (restore default recurrence)
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      responses:
+        "200":
+          description: Override removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /board/announcements:
+    get:
+      operationId: listAnnouncements
+      tags: [board]
+      summary: List announcements (newest first)
+      responses:
+        "200":
+          description: Announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+    post:
+      operationId: createAnnouncement
+      tags: [board]
+      summary: Publish an announcement (leader/auxiliary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Announcement created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+
+  /board/announcements/{id}:
+    delete:
+      operationId: deleteAnnouncement
+      tags: [board]
+      summary: Delete an announcement (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /board/polls:
+    get:
+      operationId: listPolls
+      tags: [board]
+      summary: List polls with options, vote counts and my vote
+      responses:
+        "200":
+          description: Polls
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Poll"
+    post:
+      operationId: createPoll
+      tags: [board]
+      summary: Create a poll (leader/auxiliary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PollInput"
+      responses:
+        "201":
+          description: Poll created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Poll"
+
+  /board/polls/{id}/vote:
+    post:
+      operationId: votePoll
+      tags: [board]
+      summary: Vote in a poll (one vote per member, changing is allowed while open)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoteInput"
+      responses:
+        "200":
+          description: Vote registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Poll"
+        "400":
+          description: Poll closed or invalid option
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /board/polls/{id}/close:
+    post:
+      operationId: closePoll
+      tags: [board]
+      summary: Close a poll (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Poll closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Poll"
+
+  /board/polls/{id}:
+    delete:
+      operationId: deletePoll
+      tags: [board]
+      summary: Delete a poll (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /board/tasks:
+    get:
+      operationId: listTasks
+      tags: [board]
+      summary: List weekly tasks
+      parameters:
+        - name: weekStart
+          in: query
+          required: false
+          description: Filter by week (date of Monday). Defaults to current week.
+          schema:
+            type: string
+            pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      responses:
+        "200":
+          description: Tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskItem"
+    post:
+      operationId: createTask
+      tags: [board]
+      summary: Create a weekly task (leader creates approved; auxiliary creates a proposal)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskItem"
+
+  /board/tasks/{id}/approve:
+    post:
+      operationId: approveTask
+      tags: [board]
+      summary: Approve a proposed task (leader only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskItem"
+        "403":
+          description: Leader only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /board/tasks/{id}/done:
+    post:
+      operationId: completeTask
+      tags: [board]
+      summary: Mark a task as done (assignee or leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task done
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskItem"
+
+  /board/tasks/{id}:
+    delete:
+      operationId: deleteTask
+      tags: [board]
+      summary: Delete a task (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /board/photos:
+    get:
+      operationId: listPhotos
+      tags: [board]
+      summary: List meeting photos (newest first)
+      responses:
+        "200":
+          description: Photos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Photo"
+    post:
+      operationId: createPhoto
+      tags: [board]
+      summary: Register an uploaded meeting photo (any member)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoInput"
+      responses:
+        "201":
+          description: Photo registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+
+  /board/photos/{id}:
+    delete:
+      operationId: deletePhoto
+      tags: [board]
+      summary: Delete a photo (uploader or leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned URL for file upload
+      description: |
+        Returns a presigned GCS URL for direct upload. The client sends JSON
+        metadata here, then uploads the file directly to the returned URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Missing or invalid required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /storage/objects/{objectPath}:
+    get:
+      operationId: getStorageObject
+      tags: [storage]
+      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object content streamed with correct Content-Type
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Object not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   schemas:
     HealthStatus:
@@ -812,3 +1364,377 @@ components:
           enum: [active, paused, completed]
         notes:
           type: string
+
+    RecurrenceConfig:
+      type: object
+      properties:
+        configured:
+          type: boolean
+        weekday:
+          type: ["integer", "null"]
+          description: 0 = Sunday ... 6 = Saturday
+        time:
+          type: ["string", "null"]
+          description: HH:mm (24h)
+        location:
+          type: ["string", "null"]
+      required:
+        - configured
+        - weekday
+        - time
+        - location
+
+    RecurrenceInput:
+      type: object
+      properties:
+        weekday:
+          type: integer
+          minimum: 0
+          maximum: 6
+        time:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        location:
+          type: string
+      required:
+        - weekday
+        - time
+
+    NextMeeting:
+      type: object
+      properties:
+        configured:
+          type: boolean
+        date:
+          type: ["string", "null"]
+          description: Date (YYYY-MM-DD) of the next non-canceled occurrence
+        time:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        overridden:
+          type: boolean
+      required:
+        - configured
+        - date
+        - time
+        - location
+        - overridden
+
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: ["integer", "null"]
+          description: Null for generated meeting occurrences without override
+        type:
+          type: string
+          enum: [meeting, free]
+        title:
+          type: string
+        category:
+          type: ["string", "null"]
+        date:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        time:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        canceled:
+          type: boolean
+        overridden:
+          type: boolean
+          description: True when a meeting occurrence has a one-off adjustment
+      required:
+        - id
+        - type
+        - title
+        - date
+        - time
+        - location
+        - canceled
+        - overridden
+
+    EventInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          minLength: 1
+        date:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        time:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        location:
+          type: string
+        description:
+          type: string
+      required:
+        - title
+        - category
+        - date
+
+    EventUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          minLength: 1
+        date:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        time:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        location:
+          type: string
+        description:
+          type: string
+
+    OccurrenceOverrideInput:
+      type: object
+      properties:
+        time:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        location:
+          type: string
+        canceled:
+          type: boolean
+
+    Announcement:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        authorName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - body
+        - authorName
+        - createdAt
+
+    AnnouncementInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        body:
+          type: string
+          minLength: 1
+      required:
+        - title
+        - body
+
+    PollOption:
+      type: object
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        votes:
+          type: integer
+      required:
+        - id
+        - text
+        - votes
+
+    Poll:
+      type: object
+      properties:
+        id:
+          type: integer
+        question:
+          type: string
+        closed:
+          type: boolean
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/PollOption"
+        myVote:
+          type: ["integer", "null"]
+          description: Option id the current user voted for
+        totalVotes:
+          type: integer
+        authorName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - question
+        - closed
+        - options
+        - myVote
+        - totalVotes
+        - authorName
+        - createdAt
+
+    PollInput:
+      type: object
+      properties:
+        question:
+          type: string
+          minLength: 1
+        options:
+          type: array
+          minItems: 2
+          items:
+            type: string
+            minLength: 1
+      required:
+        - question
+        - options
+
+    VoteInput:
+      type: object
+      properties:
+        optionId:
+          type: integer
+      required:
+        - optionId
+
+    TaskItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        weekStart:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        assignedTo:
+          type: ["integer", "null"]
+        assigneeName:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [proposed, approved, done]
+        proposedByName:
+          type: ["string", "null"]
+        doneAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - weekStart
+        - assignedTo
+        - assigneeName
+        - status
+        - proposedByName
+        - doneAt
+        - createdAt
+
+    TaskInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        weekStart:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        assignedTo:
+          type: integer
+      required:
+        - title
+        - weekStart
+
+    Photo:
+      type: object
+      properties:
+        id:
+          type: integer
+        objectPath:
+          type: string
+        url:
+          type: string
+          description: Relative serving URL for the photo
+        caption:
+          type: ["string", "null"]
+        uploaderName:
+          type: ["string", "null"]
+        uploadedBy:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - objectPath
+        - url
+        - caption
+        - uploaderName
+        - uploadedBy
+        - createdAt
+
+    PhotoInput:
+      type: object
+      properties:
+        objectPath:
+          type: string
+          minLength: 1
+        caption:
+          type: string
+      required:
+        - objectPath
+
+    UploadUrlRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Original file name
+        size:
+          type: integer
+          minimum: 1
+          description: File size in bytes
+        contentType:
+          type: string
+          minLength: 1
+          description: MIME type of the file (e.g. image/jpeg)
+      required:
+        - name
+        - size
+        - contentType
+
+    UploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+          description: Presigned GCS URL for PUT upload
+        objectPath:
+          type: string
+          description: Normalized object path (e.g. /objects/uploads/uuid)
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+      required:
+        - uploadURL
+        - objectPath

@@ -294,6 +294,243 @@ export interface DiscipleshipUpdate {
   notes?: string;
 }
 
+export interface RecurrenceConfig {
+  configured: boolean;
+  /**
+     * 0 = Sunday ... 6 = Saturday
+     * @nullable
+     */
+  weekday: number | null;
+  /**
+     * HH:mm (24h)
+     * @nullable
+     */
+  time: string | null;
+  /** @nullable */
+  location: string | null;
+}
+
+export interface RecurrenceInput {
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  weekday: number;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  time: string;
+  location?: string;
+}
+
+export interface NextMeeting {
+  configured: boolean;
+  /**
+     * Date (YYYY-MM-DD) of the next non-canceled occurrence
+     * @nullable
+     */
+  date: string | null;
+  /** @nullable */
+  time: string | null;
+  /** @nullable */
+  location: string | null;
+  overridden: boolean;
+}
+
+export type CalendarEventType = typeof CalendarEventType[keyof typeof CalendarEventType];
+
+
+export const CalendarEventType = {
+  meeting: 'meeting',
+  free: 'free',
+} as const;
+
+export interface CalendarEvent {
+  /**
+     * Null for generated meeting occurrences without override
+     * @nullable
+     */
+  id: number | null;
+  type: CalendarEventType;
+  title: string;
+  /** @nullable */
+  category?: string | null;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  date: string;
+  /** @nullable */
+  time: string | null;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  description?: string | null;
+  canceled: boolean;
+  /** True when a meeting occurrence has a one-off adjustment */
+  overridden: boolean;
+}
+
+export interface EventInput {
+  /** @minLength 1 */
+  title: string;
+  /** @minLength 1 */
+  category: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  date: string;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  time?: string;
+  location?: string;
+  description?: string;
+}
+
+export interface EventUpdate {
+  /** @minLength 1 */
+  title?: string;
+  /** @minLength 1 */
+  category?: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  date?: string;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  time?: string;
+  location?: string;
+  description?: string;
+}
+
+export interface OccurrenceOverrideInput {
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  time?: string;
+  location?: string;
+  canceled?: boolean;
+}
+
+export interface Announcement {
+  id: number;
+  title: string;
+  body: string;
+  /** @nullable */
+  authorName: string | null;
+  createdAt: string;
+}
+
+export interface AnnouncementInput {
+  /** @minLength 1 */
+  title: string;
+  /** @minLength 1 */
+  body: string;
+}
+
+export interface PollOption {
+  id: number;
+  text: string;
+  votes: number;
+}
+
+export interface Poll {
+  id: number;
+  question: string;
+  closed: boolean;
+  options: PollOption[];
+  /**
+     * Option id the current user voted for
+     * @nullable
+     */
+  myVote: number | null;
+  totalVotes: number;
+  /** @nullable */
+  authorName: string | null;
+  createdAt: string;
+}
+
+export interface PollInput {
+  /** @minLength 1 */
+  question: string;
+  /**
+     * @minItems 2
+     * @items.minLength 1
+     */
+  options: string[];
+}
+
+export interface VoteInput {
+  optionId: number;
+}
+
+export type TaskItemStatus = typeof TaskItemStatus[keyof typeof TaskItemStatus];
+
+
+export const TaskItemStatus = {
+  proposed: 'proposed',
+  approved: 'approved',
+  done: 'done',
+} as const;
+
+export interface TaskItem {
+  id: number;
+  title: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  weekStart: string;
+  /** @nullable */
+  assignedTo: number | null;
+  /** @nullable */
+  assigneeName: string | null;
+  status: TaskItemStatus;
+  /** @nullable */
+  proposedByName: string | null;
+  /** @nullable */
+  doneAt: string | null;
+  createdAt: string;
+}
+
+export interface TaskInput {
+  /** @minLength 1 */
+  title: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  weekStart: string;
+  assignedTo?: number;
+}
+
+export interface Photo {
+  id: number;
+  objectPath: string;
+  /** Relative serving URL for the photo */
+  url: string;
+  /** @nullable */
+  caption: string | null;
+  /** @nullable */
+  uploaderName: string | null;
+  /** @nullable */
+  uploadedBy: number | null;
+  createdAt: string;
+}
+
+export interface PhotoInput {
+  /** @minLength 1 */
+  objectPath: string;
+  caption?: string;
+}
+
+export interface UploadUrlRequest {
+  /**
+     * Original file name
+     * @minLength 1
+     */
+  name: string;
+  /**
+     * File size in bytes
+     * @minimum 1
+     */
+  size: number;
+  /**
+     * MIME type of the file (e.g. image/jpeg)
+     * @minLength 1
+     */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  /** Presigned GCS URL for PUT upload */
+  uploadURL: string;
+  /** Normalized object path (e.g. /objects/uploads/uuid) */
+  objectPath: string;
+  metadata?: UploadUrlRequest;
+}
+
 export type ListMembersParams = {
 /**
  * Filter by record status
@@ -309,4 +546,23 @@ export const ListMembersStatus = {
   guest: 'guest',
   all: 'all',
 } as const;
+
+export type ListCalendarEventsParams = {
+/**
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+from: string;
+/**
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+to: string;
+};
+
+export type ListTasksParams = {
+/**
+ * Filter by week (date of Monday). Defaults to current week.
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+weekStart?: string;
+};
 

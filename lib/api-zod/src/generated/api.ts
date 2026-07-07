@@ -439,3 +439,579 @@ export const DeleteDiscipleshipResponse = zod.object({
 })
 
 
+/**
+ * @summary Get the weekly meeting recurrence configuration
+ */
+export const GetRecurrenceResponse = zod.object({
+  "configured": zod.boolean(),
+  "weekday": zod.number().nullable().describe('0 = Sunday ... 6 = Saturday'),
+  "time": zod.string().nullable().describe('HH:mm (24h)'),
+  "location": zod.string().nullable()
+})
+
+
+/**
+ * @summary Configure the weekly meeting (day, time, location)
+ */
+export const setRecurrenceBodyWeekdayMin = 0;
+export const setRecurrenceBodyWeekdayMax = 6;
+
+export const setRecurrenceBodyTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const SetRecurrenceBody = zod.object({
+  "weekday": zod.number().min(setRecurrenceBodyWeekdayMin).max(setRecurrenceBodyWeekdayMax),
+  "time": zod.string().regex(setRecurrenceBodyTimeRegExp),
+  "location": zod.string().optional()
+})
+
+export const SetRecurrenceResponse = zod.object({
+  "configured": zod.boolean(),
+  "weekday": zod.number().nullable().describe('0 = Sunday ... 6 = Saturday'),
+  "time": zod.string().nullable().describe('HH:mm (24h)'),
+  "location": zod.string().nullable()
+})
+
+
+/**
+ * @summary Get the next weekly meeting occurrence (with overrides applied)
+ */
+export const GetNextMeetingResponse = zod.object({
+  "configured": zod.boolean(),
+  "date": zod.string().nullable().describe('Date (YYYY-MM-DD) of the next non-canceled occurrence'),
+  "time": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "overridden": zod.boolean()
+})
+
+
+/**
+ * @summary List calendar events in a period (generated meeting occurrences + free events)
+ */
+export const listCalendarEventsQueryFromRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listCalendarEventsQueryToRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListCalendarEventsQueryParams = zod.object({
+  "from": zod.coerce.string().regex(listCalendarEventsQueryFromRegExp),
+  "to": zod.coerce.string().regex(listCalendarEventsQueryToRegExp)
+})
+
+export const listCalendarEventsResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListCalendarEventsResponseItem = zod.object({
+  "id": zod.number().nullable().describe('Null for generated meeting occurrences without override'),
+  "type": zod.enum(['meeting', 'free']),
+  "title": zod.string(),
+  "category": zod.string().nullish(),
+  "date": zod.string().regex(listCalendarEventsResponseDateRegExp),
+  "time": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "description": zod.string().nullish(),
+  "canceled": zod.boolean(),
+  "overridden": zod.boolean().describe('True when a meeting occurrence has a one-off adjustment')
+})
+export const ListCalendarEventsResponse = zod.array(ListCalendarEventsResponseItem)
+
+
+/**
+ * @summary Create a free event (leader/auxiliary)
+ */
+
+
+export const createEventBodyDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const createEventBodyTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const CreateEventBody = zod.object({
+  "title": zod.string().min(1),
+  "category": zod.string().min(1),
+  "date": zod.string().regex(createEventBodyDateRegExp),
+  "time": zod.string().regex(createEventBodyTimeRegExp).optional(),
+  "location": zod.string().optional(),
+  "description": zod.string().optional()
+})
+
+export const createEventResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateEventResponse = zod.object({
+  "id": zod.number().nullable().describe('Null for generated meeting occurrences without override'),
+  "type": zod.enum(['meeting', 'free']),
+  "title": zod.string(),
+  "category": zod.string().nullish(),
+  "date": zod.string().regex(createEventResponseDateRegExp),
+  "time": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "description": zod.string().nullish(),
+  "canceled": zod.boolean(),
+  "overridden": zod.boolean().describe('True when a meeting occurrence has a one-off adjustment')
+})
+
+
+/**
+ * @summary Update a free event (leader/auxiliary)
+ */
+export const UpdateEventParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+export const updateEventBodyDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateEventBodyTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const UpdateEventBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "category": zod.string().min(1).optional(),
+  "date": zod.string().regex(updateEventBodyDateRegExp).optional(),
+  "time": zod.string().regex(updateEventBodyTimeRegExp).optional(),
+  "location": zod.string().optional(),
+  "description": zod.string().optional()
+})
+
+export const updateEventResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const UpdateEventResponse = zod.object({
+  "id": zod.number().nullable().describe('Null for generated meeting occurrences without override'),
+  "type": zod.enum(['meeting', 'free']),
+  "title": zod.string(),
+  "category": zod.string().nullish(),
+  "date": zod.string().regex(updateEventResponseDateRegExp),
+  "time": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "description": zod.string().nullish(),
+  "canceled": zod.boolean(),
+  "overridden": zod.boolean().describe('True when a meeting occurrence has a one-off adjustment')
+})
+
+
+/**
+ * @summary Delete a free event (leader/auxiliary)
+ */
+export const DeleteEventParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteEventResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Adjust a single weekly meeting occurrence (time/location/cancel) without changing the recurrence
+ */
+export const overrideOccurrencePathDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const OverrideOccurrenceParams = zod.object({
+  "date": zod.coerce.string().regex(overrideOccurrencePathDateRegExp)
+})
+
+export const overrideOccurrenceBodyTimeRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
+
+export const OverrideOccurrenceBody = zod.object({
+  "time": zod.string().regex(overrideOccurrenceBodyTimeRegExp).optional(),
+  "location": zod.string().optional(),
+  "canceled": zod.boolean().optional()
+})
+
+export const overrideOccurrenceResponseDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const OverrideOccurrenceResponse = zod.object({
+  "id": zod.number().nullable().describe('Null for generated meeting occurrences without override'),
+  "type": zod.enum(['meeting', 'free']),
+  "title": zod.string(),
+  "category": zod.string().nullish(),
+  "date": zod.string().regex(overrideOccurrenceResponseDateRegExp),
+  "time": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "description": zod.string().nullish(),
+  "canceled": zod.boolean(),
+  "overridden": zod.boolean().describe('True when a meeting occurrence has a one-off adjustment')
+})
+
+
+/**
+ * @summary Remove the override of a meeting occurrence (restore default recurrence)
+ */
+export const clearOccurrenceOverridePathDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ClearOccurrenceOverrideParams = zod.object({
+  "date": zod.coerce.string().regex(clearOccurrenceOverridePathDateRegExp)
+})
+
+export const ClearOccurrenceOverrideResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List announcements (newest first)
+ */
+export const ListAnnouncementsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "authorName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem)
+
+
+/**
+ * @summary Publish an announcement (leader/auxiliary)
+ */
+
+
+
+
+export const CreateAnnouncementBody = zod.object({
+  "title": zod.string().min(1),
+  "body": zod.string().min(1)
+})
+
+export const CreateAnnouncementResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "authorName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete an announcement (leader/auxiliary)
+ */
+export const DeleteAnnouncementParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAnnouncementResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List polls with options, vote counts and my vote
+ */
+export const ListPollsResponseItem = zod.object({
+  "id": zod.number(),
+  "question": zod.string(),
+  "closed": zod.boolean(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "text": zod.string(),
+  "votes": zod.number()
+})),
+  "myVote": zod.number().nullable().describe('Option id the current user voted for'),
+  "totalVotes": zod.number(),
+  "authorName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+export const ListPollsResponse = zod.array(ListPollsResponseItem)
+
+
+/**
+ * @summary Create a poll (leader/auxiliary)
+ */
+
+
+export const createPollBodyOptionsMin = 2;
+
+
+
+export const CreatePollBody = zod.object({
+  "question": zod.string().min(1),
+  "options": zod.array(zod.string().min(1)).min(createPollBodyOptionsMin)
+})
+
+export const CreatePollResponse = zod.object({
+  "id": zod.number(),
+  "question": zod.string(),
+  "closed": zod.boolean(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "text": zod.string(),
+  "votes": zod.number()
+})),
+  "myVote": zod.number().nullable().describe('Option id the current user voted for'),
+  "totalVotes": zod.number(),
+  "authorName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Vote in a poll (one vote per member, changing is allowed while open)
+ */
+export const VotePollParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const VotePollBody = zod.object({
+  "optionId": zod.number()
+})
+
+export const VotePollResponse = zod.object({
+  "id": zod.number(),
+  "question": zod.string(),
+  "closed": zod.boolean(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "text": zod.string(),
+  "votes": zod.number()
+})),
+  "myVote": zod.number().nullable().describe('Option id the current user voted for'),
+  "totalVotes": zod.number(),
+  "authorName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Close a poll (leader/auxiliary)
+ */
+export const ClosePollParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ClosePollResponse = zod.object({
+  "id": zod.number(),
+  "question": zod.string(),
+  "closed": zod.boolean(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "text": zod.string(),
+  "votes": zod.number()
+})),
+  "myVote": zod.number().nullable().describe('Option id the current user voted for'),
+  "totalVotes": zod.number(),
+  "authorName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a poll (leader/auxiliary)
+ */
+export const DeletePollParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePollResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List weekly tasks
+ */
+export const listTasksQueryWeekStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListTasksQueryParams = zod.object({
+  "weekStart": zod.coerce.string().regex(listTasksQueryWeekStartRegExp).optional().describe('Filter by week (date of Monday). Defaults to current week.')
+})
+
+export const listTasksResponseWeekStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListTasksResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "weekStart": zod.string().regex(listTasksResponseWeekStartRegExp),
+  "assignedTo": zod.number().nullable(),
+  "assigneeName": zod.string().nullable(),
+  "status": zod.enum(['proposed', 'approved', 'done']),
+  "proposedByName": zod.string().nullable(),
+  "doneAt": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+export const ListTasksResponse = zod.array(ListTasksResponseItem)
+
+
+/**
+ * @summary Create a weekly task (leader creates approved; auxiliary creates a proposal)
+ */
+
+export const createTaskBodyWeekStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateTaskBody = zod.object({
+  "title": zod.string().min(1),
+  "weekStart": zod.string().regex(createTaskBodyWeekStartRegExp),
+  "assignedTo": zod.number().optional()
+})
+
+export const createTaskResponseWeekStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateTaskResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "weekStart": zod.string().regex(createTaskResponseWeekStartRegExp),
+  "assignedTo": zod.number().nullable(),
+  "assigneeName": zod.string().nullable(),
+  "status": zod.enum(['proposed', 'approved', 'done']),
+  "proposedByName": zod.string().nullable(),
+  "doneAt": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Approve a proposed task (leader only)
+ */
+export const ApproveTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const approveTaskResponseWeekStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ApproveTaskResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "weekStart": zod.string().regex(approveTaskResponseWeekStartRegExp),
+  "assignedTo": zod.number().nullable(),
+  "assigneeName": zod.string().nullable(),
+  "status": zod.enum(['proposed', 'approved', 'done']),
+  "proposedByName": zod.string().nullable(),
+  "doneAt": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Mark a task as done (assignee or leader/auxiliary)
+ */
+export const CompleteTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const completeTaskResponseWeekStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CompleteTaskResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "weekStart": zod.string().regex(completeTaskResponseWeekStartRegExp),
+  "assignedTo": zod.number().nullable(),
+  "assigneeName": zod.string().nullable(),
+  "status": zod.enum(['proposed', 'approved', 'done']),
+  "proposedByName": zod.string().nullable(),
+  "doneAt": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a task (leader/auxiliary)
+ */
+export const DeleteTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteTaskResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List meeting photos (newest first)
+ */
+export const ListPhotosResponseItem = zod.object({
+  "id": zod.number(),
+  "objectPath": zod.string(),
+  "url": zod.string().describe('Relative serving URL for the photo'),
+  "caption": zod.string().nullable(),
+  "uploaderName": zod.string().nullable(),
+  "uploadedBy": zod.number().nullable(),
+  "createdAt": zod.string()
+})
+export const ListPhotosResponse = zod.array(ListPhotosResponseItem)
+
+
+/**
+ * @summary Register an uploaded meeting photo (any member)
+ */
+
+
+
+export const CreatePhotoBody = zod.object({
+  "objectPath": zod.string().min(1),
+  "caption": zod.string().optional()
+})
+
+export const CreatePhotoResponse = zod.object({
+  "id": zod.number(),
+  "objectPath": zod.string(),
+  "url": zod.string().describe('Relative serving URL for the photo'),
+  "caption": zod.string().nullable(),
+  "uploaderName": zod.string().nullable(),
+  "uploadedBy": zod.number().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a photo (uploader or leader/auxiliary)
+ */
+export const DeletePhotoParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePhotoResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * Returns a presigned GCS URL for direct upload. The client sends JSON
+ * metadata here, then uploads the file directly to the returned URL.
+ * @summary Request a presigned URL for file upload
+ */
+
+
+
+
+
+export const RequestUploadUrlBody = zod.object({
+  "name": zod.string().min(1).describe('Original file name'),
+  "size": zod.number().min(1).describe('File size in bytes'),
+  "contentType": zod.string().min(1).describe('MIME type of the file (e.g. image\/jpeg)')
+})
+
+
+
+
+
+
+export const RequestUploadUrlResponse = zod.object({
+  "uploadURL": zod.string().url().describe('Presigned GCS URL for PUT upload'),
+  "objectPath": zod.string().describe('Normalized object path (e.g. \/objects\/uploads\/uuid)'),
+  "metadata": zod.object({
+  "name": zod.string().min(1).describe('Original file name'),
+  "size": zod.number().min(1).describe('File size in bytes'),
+  "contentType": zod.string().min(1).describe('MIME type of the file (e.g. image\/jpeg)')
+}).optional()
+})
+
+
+/**
+ * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ */
+export const GetStorageObjectParams = zod.object({
+  "objectPath": zod.coerce.string()
+})
+
+export const GetStorageObjectResponse = zod.unknown()
+
+
