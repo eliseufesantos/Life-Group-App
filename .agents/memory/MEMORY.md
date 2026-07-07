@@ -1,0 +1,2 @@
+- [Single-use token consumption](atomic-token-consumption.md) — consume magic-links/invites with atomic UPDATE ... WHERE unused RETURNING, never SELECT-then-UPDATE (race replay).
+- [Life Group App auth model](life-group-auth.md) — passwordless magic-link via Resend, first leader seeded from SEED_LEADER_* env, roles/categories glossary.

@@ -10,6 +10,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication (invite + magic link)
+  - name: members
+    description: Members and guests
+  - name: discipleship
+    description: Discipleship relationships
 paths:
   /healthz:
     get:
@@ -24,6 +30,425 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the currently authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/invites:
+    get:
+      operationId: listInvites
+      tags: [auth]
+      summary: List invite codes created by the leader/auxiliary
+      responses:
+        "200":
+          description: List of invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invite"
+    post:
+      operationId: createInvite
+      tags: [auth]
+      summary: Generate a new single-use invite code (valid 24h)
+      responses:
+        "201":
+          description: Invite created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invite"
+
+  /auth/invites/{code}:
+    get:
+      operationId: validateInvite
+      tags: [auth]
+      summary: Validate an invite code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invite is valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteValidation"
+        "404":
+          description: Invalid or expired invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/register:
+    post:
+      operationId: registerWithInvite
+      tags: [auth]
+      summary: Register a new member using an invite code, then receive a magic link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "200":
+          description: Magic link sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MagicLinkResult"
+        "400":
+          description: Invalid input or invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/magic-link:
+    post:
+      operationId: requestMagicLink
+      tags: [auth]
+      summary: Request a magic link for an existing account (login)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MagicLinkInput"
+      responses:
+        "200":
+          description: Magic link sent (always returns success to avoid email enumeration)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MagicLinkResult"
+
+  /auth/verify:
+    post:
+      operationId: verifyMagicLink
+      tags: [auth]
+      summary: Verify a magic link token and create a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyInput"
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "400":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Log out of the current session
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: List all members and guests
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter by record status
+          schema:
+            type: string
+            enum: [member, guest, all]
+      responses:
+        "200":
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+    post:
+      operationId: createGuest
+      tags: [members]
+      summary: Register a guest (informational record, no login)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestInput"
+      responses:
+        "201":
+          description: Guest created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /members/import:
+    post:
+      operationId: importMembers
+      tags: [members]
+      summary: Bulk import members from CSV rows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberImportInput"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+
+  /members/{id}:
+    get:
+      operationId: getMember
+      tags: [members]
+      summary: Get a member by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Member detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      operationId: updateMember
+      tags: [members]
+      summary: Update a member's attributes (role, categories, formation track, contact)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberUpdate"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteMember
+      tags: [members]
+      summary: Remove a member or guest record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /members/{id}/promote:
+    post:
+      operationId: promoteGuest
+      tags: [members]
+      summary: Promote a guest to member (reuses existing profile)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromoteInput"
+      responses:
+        "200":
+          description: Promoted member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberDetail"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /members/stats:
+    get:
+      operationId: getMemberStats
+      tags: [members]
+      summary: Aggregate member/guest counts and conversion rate
+      responses:
+        "200":
+          description: Member stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberStats"
+
+  /discipleship:
+    get:
+      operationId: listDiscipleships
+      tags: [discipleship]
+      summary: List all discipleship relationships
+      responses:
+        "200":
+          description: List of relationships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Discipleship"
+    post:
+      operationId: createDiscipleship
+      tags: [discipleship]
+      summary: Create a discipler to disciple relationship
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscipleshipInput"
+      responses:
+        "201":
+          description: Relationship created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Discipleship"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /discipleship/{id}:
+    patch:
+      operationId: updateDiscipleship
+      tags: [discipleship]
+      summary: Update discipleship progress notes or status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscipleshipUpdate"
+      responses:
+        "200":
+          description: Updated relationship
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Discipleship"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteDiscipleship
+      tags: [discipleship]
+      summary: Remove a discipleship relationship
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +459,356 @@ components:
       required:
         - status
 
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    OkResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
+
+    MagicLinkResult:
+      type: object
+      properties:
+        sent:
+          type: boolean
+        devLink:
+          type: ["string", "null"]
+          description: In development, the magic link URL for convenience
+      required:
+        - sent
+
+    CurrentUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [leader, auxiliary, member]
+        categories:
+          type: array
+          items:
+            type: string
+            enum: [host, discipler, disciple]
+        formationTrack:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - role
+        - categories
+
+    Invite:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        createdAt:
+          type: string
+        expiresAt:
+          type: string
+        used:
+          type: boolean
+      required:
+        - id
+        - code
+        - createdAt
+        - expiresAt
+        - used
+
+    InviteValidation:
+      type: object
+      properties:
+        valid:
+          type: boolean
+      required:
+        - valid
+
+    RegisterInput:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+      required:
+        - code
+        - name
+        - email
+
+    MagicLinkInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+        - email
+
+    VerifyInput:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+      required:
+        - token
+
+    Member:
+      type: object
+      description: Member row. Contact/formation fields are only populated for leader/auxiliary viewers.
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [member, guest]
+        role:
+          type: ["string", "null"]
+          enum: [leader, auxiliary, member, null]
+        categories:
+          type: array
+          items:
+            type: string
+            enum: [host, discipler, disciple]
+        formationTrack:
+          type: ["string", "null"]
+        invitedBy:
+          type: ["string", "null"]
+        joinedAt:
+          type: ["string", "null"]
+        active:
+          type: boolean
+      required:
+        - id
+        - name
+        - status
+        - categories
+        - active
+
+    MemberDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [member, guest]
+        role:
+          type: ["string", "null"]
+          enum: [leader, auxiliary, member, null]
+        categories:
+          type: array
+          items:
+            type: string
+            enum: [host, discipler, disciple]
+        formationTrack:
+          type: ["string", "null"]
+        invitedBy:
+          type: ["string", "null"]
+        joinedAt:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        disciples:
+          type: array
+          items:
+            $ref: "#/components/schemas/Discipleship"
+        disciplers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Discipleship"
+      required:
+        - id
+        - name
+        - status
+        - categories
+        - active
+        - disciples
+        - disciplers
+
+    GuestInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+        invitedBy:
+          type: string
+      required:
+        - name
+
+    PromoteInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+        - email
+
+    MemberUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [leader, auxiliary, member]
+        categories:
+          type: array
+          items:
+            type: string
+            enum: [host, discipler, disciple]
+        formationTrack:
+          type: string
+        active:
+          type: boolean
+
+    MemberImportInput:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberImportRow"
+      required:
+        - rows
+
+    MemberImportRow:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+        phone:
+          type: string
+        formationTrack:
+          type: string
+      required:
+        - name
+
+    ImportResult:
+      type: object
+      properties:
+        imported:
+          type: integer
+        skipped:
+          type: integer
+      required:
+        - imported
+        - skipped
+
+    MemberStats:
+      type: object
+      properties:
+        totalMembers:
+          type: integer
+        totalGuests:
+          type: integer
+        totalDisciplers:
+          type: integer
+        totalHosts:
+          type: integer
+        conversionRate:
+          type: number
+      required:
+        - totalMembers
+        - totalGuests
+        - totalDisciplers
+        - totalHosts
+        - conversionRate
+
+    Discipleship:
+      type: object
+      properties:
+        id:
+          type: integer
+        disciplerId:
+          type: integer
+        disciplerName:
+          type: string
+        discipleId:
+          type: integer
+        discipleName:
+          type: string
+        startDate:
+          type: string
+        status:
+          type: string
+          enum: [active, paused, completed]
+        notes:
+          type: ["string", "null"]
+      required:
+        - id
+        - disciplerId
+        - disciplerName
+        - discipleId
+        - discipleName
+        - startDate
+        - status
+
+    DiscipleshipInput:
+      type: object
+      properties:
+        disciplerId:
+          type: integer
+        discipleId:
+          type: integer
+        notes:
+          type: string
+      required:
+        - disciplerId
+        - discipleId
+
+    DiscipleshipUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, paused, completed]
+        notes:
+          type: string

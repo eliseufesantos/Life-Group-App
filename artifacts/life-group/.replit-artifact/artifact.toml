@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Life Group App"
+version = "1.0.0"
+id = "artifacts/life-group"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24338
+
+[services.development]
+run = "pnpm --filter @workspace/life-group run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/life-group", "run", "build" ]
+publicDir = "artifacts/life-group/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24338"
+BASE_PATH = "/"
