@@ -30,6 +30,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, requirePrivileged, isPrivileged, type AuthedRequest } from "../lib/auth";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { notifyUsers } from "../lib/push";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -83,6 +84,14 @@ router.post(
         createdBy: req.user!.id,
       })
       .returning();
+    void notifyUsers({
+      userIds: null,
+      excludeUserId: req.user!.id,
+      type: "announcement",
+      title: "Novo aviso no mural",
+      body: aviso.title,
+      link: "/mural",
+    });
     res.status(201).json({
       id: aviso.id,
       title: aviso.title,
@@ -346,6 +355,16 @@ router.post(
         proposedBy: req.user!.id,
       })
       .returning();
+    if (task.assignedTo !== null && task.status === "approved") {
+      void notifyUsers({
+        userIds: [task.assignedTo],
+        excludeUserId: req.user!.id,
+        type: "task",
+        title: "Nova tarefa atribuída a você",
+        body: task.title,
+        link: "/mural",
+      });
+    }
     res.status(201).json(await toTaskDto(task));
   },
 );
@@ -370,6 +389,16 @@ router.post("/board/tasks/:id/approve", requireAuth, async (req: AuthedRequest, 
   if (!task) {
     res.status(404).json({ error: "Tarefa não encontrada ou já aprovada" });
     return;
+  }
+  if (task.assignedTo !== null) {
+    void notifyUsers({
+      userIds: [task.assignedTo],
+      excludeUserId: req.user!.id,
+      type: "task",
+      title: "Tarefa atribuída a você foi aprovada",
+      body: task.title,
+      link: "/mural",
+    });
   }
   res.json(await toTaskDto(task));
 });

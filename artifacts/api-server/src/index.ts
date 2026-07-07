@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedLeader } from "./lib/seed";
+import { startReportScheduler } from "./lib/reportScheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -29,4 +30,6 @@ app.listen(port, async (err) => {
   } catch (seedErr) {
     logger.error({ err: seedErr }, "Failed to seed initial leader");
   }
+
+  startReportScheduler();
 });

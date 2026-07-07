@@ -2,3 +2,5 @@
 - [Life Group App auth model](life-group-auth.md) — passwordless magic-link via Resend, first leader seeded from SEED_LEADER_* env, roles/categories glossary.
 - [Orval date params](orval-date-params.md) — never use `format: date` in openapi.yaml; orval emits `zod.date()` which rejects "YYYY-MM-DD" strings. Use a string pattern instead.
 - [Object storage ACL serving](object-storage-acl.md) — the storage template's private serving route ships with auth/ACL commented out; enable auth + ACL check and set ACL policy on entity create.
+- [Singleton/idempotent DB rows](singleton-db-rows.md) — enforce single-row/once-per-period tables with unique constraints + onConflictDoNothing, never SELECT-then-INSERT; drizzle push prompts on such DDL, apply manually.
+- [PWA under path-based proxy](pwa-base-path.md) — use %BASE_URL% in index.html and import.meta.env.BASE_URL in code; root-absolute manifest/icon/sw URLs break under the path prefix.

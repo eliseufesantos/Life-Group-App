@@ -19,6 +19,10 @@ import Profile from "@/pages/profile";
 import Settings from "@/pages/settings";
 import Calendar from "@/pages/calendar";
 import Board from "@/pages/board";
+import Campanhas from "@/pages/campanhas";
+import Relatorios from "@/pages/relatorios";
+import CelulaConfig from "@/pages/celula";
+import Notificacoes from "@/pages/notificacoes";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +45,10 @@ function Router() {
               <Route path="/convites" component={Invites} />
               <Route path="/perfil" component={Profile} />
               <Route path="/configuracoes" component={Settings} />
+              <Route path="/campanhas" component={Campanhas} />
+              <Route path="/relatorios" component={Relatorios} />
+              <Route path="/celula" component={CelulaConfig} />
+              <Route path="/notificacoes" component={Notificacoes} />
               <Route component={NotFound} />
             </Switch>
           </Layout>

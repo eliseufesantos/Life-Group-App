@@ -1,4 +1,4 @@
-import { useGetMemberStats, useGetNextMeeting, useListCalendarEvents, useListAnnouncements, getListCalendarEventsQueryKey, getListAnnouncementsQueryKey } from "@workspace/api-client-react";
+import { useGetMemberStats, useGetNextMeeting, useListCalendarEvents, useListAnnouncements, useListNotifications, getListCalendarEventsQueryKey, getListAnnouncementsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, HeartHandshake, Home, CalendarDays, MapPin, Clock, Bell, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +22,8 @@ export default function HomeDashboard() {
     { query: { queryKey: getListAnnouncementsQueryKey() } }
   );
 
+  const { data: notifications } = useListNotifications();
+
   if (isLoadingStats || isLoadingNextMeeting || isLoadingEvents || isLoadingAnnouncements) {
     return (
       <div className="p-6 space-y-6">
@@ -38,12 +40,27 @@ export default function HomeDashboard() {
 
   const upcomingHighlights = upcomingEvents?.filter((e) => !e.canceled).slice(0, 3) || [];
   const recentAnnouncements = announcements?.slice(0, 3) || [];
+  const unreadCount = (notifications ?? []).filter((n) => !n.read).length;
 
   return (
     <div className="p-6 space-y-8 max-w-6xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-serif font-bold text-foreground">Início</h1>
-        <p className="text-muted-foreground mt-1">Bem-vindo(a) à nossa célula.</p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-serif font-bold text-foreground">Início</h1>
+          <p className="text-muted-foreground mt-1">Bem-vindo(a) à nossa célula.</p>
+        </div>
+        <Link
+          href="/notificacoes"
+          className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border bg-card text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Notificações"
+        >
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </Link>
       </div>
 
       {nextMeeting?.configured && nextMeeting.date && (

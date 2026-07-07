@@ -22,6 +22,16 @@ tags:
     description: Mural (announcements, polls, weekly tasks, photos)
   - name: storage
     description: Object storage upload and serving endpoints
+  - name: campaigns
+    description: Donation campaigns (money/items, aggregated items only, no donor identity)
+  - name: reports
+    description: Consolidated reports (on-demand + monthly) with CSV export
+  - name: push
+    description: Web Push (VAPID) subscriptions
+  - name: notifications
+    description: In-app notifications
+  - name: cell
+    description: Cell configuration (name, photo)
 paths:
   /healthz:
     get:
@@ -1001,6 +1011,419 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /campaigns:
+    get:
+      operationId: listCampaigns
+      tags: [campaigns]
+      summary: List campaigns (newest first)
+      responses:
+        "200":
+          description: Campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Campaign"
+    post:
+      operationId: createCampaign
+      tags: [campaigns]
+      summary: Create a campaign (leader/auxiliary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignInput"
+      responses:
+        "201":
+          description: Campaign created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /campaigns/{id}:
+    patch:
+      operationId: updateCampaign
+      tags: [campaigns]
+      summary: Update a campaign (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignUpdate"
+      responses:
+        "200":
+          description: Updated campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteCampaign
+      tags: [campaigns]
+      summary: Delete a campaign (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /campaigns/{id}/close:
+    post:
+      operationId: closeCampaign
+      tags: [campaigns]
+      summary: Close a campaign (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Campaign closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /campaigns/{id}/items:
+    get:
+      operationId: listCampaignItems
+      tags: [campaigns]
+      summary: List aggregated donated items of a campaign (no donor identity)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CampaignItem"
+    post:
+      operationId: addCampaignItem
+      tags: [campaigns]
+      summary: Register donated items in aggregate (leader/auxiliary, never donor identity)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignItemInput"
+      responses:
+        "201":
+          description: Item registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignItem"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /campaigns/{id}/items/{itemId}:
+    delete:
+      operationId: deleteCampaignItem
+      tags: [campaigns]
+      summary: Remove a registered item entry (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /reports:
+    get:
+      operationId: listReports
+      tags: [reports]
+      summary: List generated reports (leader/auxiliary)
+      responses:
+        "200":
+          description: Reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReportSummary"
+
+  /reports/generate:
+    post:
+      operationId: generateReport
+      tags: [reports]
+      summary: Generate a consolidated report on demand (leader/auxiliary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportGenerateInput"
+      responses:
+        "201":
+          description: Report generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /reports/{id}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get a report with full data (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteReport
+      tags: [reports]
+      summary: Delete a report (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /reports/{id}/csv:
+    get:
+      operationId: exportReportCsv
+      tags: [reports]
+      summary: Export a report as CSV (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /push/public-key:
+    get:
+      operationId: getPushPublicKey
+      tags: [push]
+      summary: Get the VAPID public key for browser push subscription
+      responses:
+        "200":
+          description: Public key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushPublicKey"
+
+  /push/subscribe:
+    post:
+      operationId: subscribePush
+      tags: [push]
+      summary: Register the browser push subscription for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscribeInput"
+      responses:
+        "200":
+          description: Subscribed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /push/unsubscribe:
+    post:
+      operationId: unsubscribePush
+      tags: [push]
+      summary: Remove a push subscription for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushUnsubscribeInput"
+      responses:
+        "200":
+          description: Unsubscribed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List my in-app notifications (newest first, latest 50)
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppNotification"
+
+  /notifications/read-all:
+    post:
+      operationId: markNotificationsRead
+      tags: [notifications]
+      summary: Mark all my notifications as read
+      responses:
+        "200":
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /cell:
+    get:
+      operationId: getCellConfig
+      tags: [cell]
+      summary: Get the cell configuration (name, photo)
+      responses:
+        "200":
+          description: Cell configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CellConfig"
+    put:
+      operationId: updateCellConfig
+      tags: [cell]
+      summary: Update the cell configuration (leader/auxiliary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CellConfigInput"
+      responses:
+        "200":
+          description: Updated configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CellConfig"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   schemas:
     HealthStatus:
@@ -1738,3 +2161,360 @@ components:
       required:
         - uploadURL
         - objectPath
+
+    Campaign:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [money, items, both]
+        startDate:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        endDate:
+          type: ["string", "null"]
+        externalLink:
+          type: ["string", "null"]
+          description: Link to an external donation ministry (shown as link/QR code)
+        status:
+          type: string
+          enum: [active, closed]
+        createdByName:
+          type: ["string", "null"]
+        itemCount:
+          type: integer
+          description: Number of aggregated item entries registered
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - description
+        - type
+        - startDate
+        - endDate
+        - externalLink
+        - status
+        - createdByName
+        - itemCount
+        - createdAt
+
+    CampaignInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        type:
+          type: string
+          enum: [money, items, both]
+        startDate:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        endDate:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        externalLink:
+          type: string
+      required:
+        - title
+        - type
+        - startDate
+
+    CampaignUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        type:
+          type: string
+          enum: [money, items, both]
+        startDate:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        endDate:
+          type: ["string", "null"]
+        externalLink:
+          type: ["string", "null"]
+
+    CampaignItem:
+      type: object
+      description: Aggregated item entry. Donor identity is never collected or stored.
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        itemName:
+          type: string
+        quantity:
+          type: integer
+        unit:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - campaignId
+        - itemName
+        - quantity
+        - unit
+        - createdAt
+
+    CampaignItemInput:
+      type: object
+      properties:
+        itemName:
+          type: string
+          minLength: 1
+        quantity:
+          type: integer
+          minimum: 1
+        unit:
+          type: string
+      required:
+        - itemName
+        - quantity
+
+    ReportSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [monthly, on_demand]
+        periodStart:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        periodEnd:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        createdByName:
+          type: ["string", "null"]
+          description: Null when generated automatically
+        createdAt:
+          type: string
+      required:
+        - id
+        - type
+        - periodStart
+        - periodEnd
+        - createdByName
+        - createdAt
+
+    Report:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [monthly, on_demand]
+        periodStart:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        periodEnd:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        createdByName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        data:
+          $ref: "#/components/schemas/ReportData"
+      required:
+        - id
+        - type
+        - periodStart
+        - periodEnd
+        - createdByName
+        - createdAt
+        - data
+
+    ReportData:
+      type: object
+      description: Consolidated report data. Never includes donor identity or individual financial values.
+      properties:
+        membersTotal:
+          type: integer
+        membersNew:
+          type: integer
+        guestsNew:
+          type: integer
+        guestsTotal:
+          type: integer
+        meetingsHeld:
+          type: integer
+          description: Weekly meeting occurrences in the period (excluding cancelled)
+        eventsCount:
+          type: integer
+          description: Free events in the period
+        tasksTotal:
+          type: integer
+        tasksDone:
+          type: integer
+        discipleshipTotal:
+          type: integer
+        discipleshipActive:
+          type: integer
+        campaigns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportCampaign"
+      required:
+        - membersTotal
+        - membersNew
+        - guestsNew
+        - guestsTotal
+        - meetingsHeld
+        - eventsCount
+        - tasksTotal
+        - tasksDone
+        - discipleshipTotal
+        - discipleshipActive
+        - campaigns
+
+    ReportCampaign:
+      type: object
+      properties:
+        campaignId:
+          type: integer
+        title:
+          type: string
+        status:
+          type: string
+          enum: [active, closed]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportCampaignItem"
+      required:
+        - campaignId
+        - title
+        - status
+        - items
+
+    ReportCampaignItem:
+      type: object
+      properties:
+        itemName:
+          type: string
+        quantity:
+          type: integer
+        unit:
+          type: ["string", "null"]
+      required:
+        - itemName
+        - quantity
+        - unit
+
+    ReportGenerateInput:
+      type: object
+      properties:
+        periodStart:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        periodEnd:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      required:
+        - periodStart
+        - periodEnd
+
+    PushPublicKey:
+      type: object
+      properties:
+        publicKey:
+          type: string
+      required:
+        - publicKey
+
+    PushSubscribeInput:
+      type: object
+      properties:
+        endpoint:
+          type: string
+          minLength: 1
+        p256dh:
+          type: string
+          minLength: 1
+        auth:
+          type: string
+          minLength: 1
+      required:
+        - endpoint
+        - p256dh
+        - auth
+
+    PushUnsubscribeInput:
+      type: object
+      properties:
+        endpoint:
+          type: string
+          minLength: 1
+      required:
+        - endpoint
+
+    AppNotification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [event, task, announcement]
+        title:
+          type: string
+        body:
+          type: ["string", "null"]
+        link:
+          type: ["string", "null"]
+        read:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - type
+        - title
+        - body
+        - link
+        - read
+        - createdAt
+
+    CellConfig:
+      type: object
+      properties:
+        name:
+          type: string
+        photoUrl:
+          type: ["string", "null"]
+        updatedAt:
+          type: ["string", "null"]
+      required:
+        - name
+        - photoUrl
+        - updatedAt
+
+    CellConfigInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        photoUrl:
+          type: ["string", "null"]
+      required:
+        - name

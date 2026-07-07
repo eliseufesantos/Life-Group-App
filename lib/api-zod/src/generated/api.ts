@@ -1015,3 +1015,417 @@ export const GetStorageObjectParams = zod.object({
 export const GetStorageObjectResponse = zod.unknown()
 
 
+/**
+ * @summary List campaigns (newest first)
+ */
+export const listCampaignsResponseStartDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListCampaignsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "type": zod.enum(['money', 'items', 'both']),
+  "startDate": zod.string().regex(listCampaignsResponseStartDateRegExp),
+  "endDate": zod.string().nullable(),
+  "externalLink": zod.string().nullable().describe('Link to an external donation ministry (shown as link\/QR code)'),
+  "status": zod.enum(['active', 'closed']),
+  "createdByName": zod.string().nullable(),
+  "itemCount": zod.number().describe('Number of aggregated item entries registered'),
+  "createdAt": zod.string()
+})
+export const ListCampaignsResponse = zod.array(ListCampaignsResponseItem)
+
+
+/**
+ * @summary Create a campaign (leader/auxiliary)
+ */
+
+export const createCampaignBodyStartDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const createCampaignBodyEndDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateCampaignBody = zod.object({
+  "title": zod.string().min(1),
+  "description": zod.string().optional(),
+  "type": zod.enum(['money', 'items', 'both']),
+  "startDate": zod.string().regex(createCampaignBodyStartDateRegExp),
+  "endDate": zod.string().regex(createCampaignBodyEndDateRegExp).optional(),
+  "externalLink": zod.string().optional()
+})
+
+export const createCampaignResponseStartDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateCampaignResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "type": zod.enum(['money', 'items', 'both']),
+  "startDate": zod.string().regex(createCampaignResponseStartDateRegExp),
+  "endDate": zod.string().nullable(),
+  "externalLink": zod.string().nullable().describe('Link to an external donation ministry (shown as link\/QR code)'),
+  "status": zod.enum(['active', 'closed']),
+  "createdByName": zod.string().nullable(),
+  "itemCount": zod.number().describe('Number of aggregated item entries registered'),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a campaign (leader/auxiliary)
+ */
+export const UpdateCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+export const updateCampaignBodyStartDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const UpdateCampaignBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "description": zod.string().optional(),
+  "type": zod.enum(['money', 'items', 'both']).optional(),
+  "startDate": zod.string().regex(updateCampaignBodyStartDateRegExp).optional(),
+  "endDate": zod.string().nullish(),
+  "externalLink": zod.string().nullish()
+})
+
+export const updateCampaignResponseStartDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const UpdateCampaignResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "type": zod.enum(['money', 'items', 'both']),
+  "startDate": zod.string().regex(updateCampaignResponseStartDateRegExp),
+  "endDate": zod.string().nullable(),
+  "externalLink": zod.string().nullable().describe('Link to an external donation ministry (shown as link\/QR code)'),
+  "status": zod.enum(['active', 'closed']),
+  "createdByName": zod.string().nullable(),
+  "itemCount": zod.number().describe('Number of aggregated item entries registered'),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a campaign (leader/auxiliary)
+ */
+export const DeleteCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCampaignResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Close a campaign (leader/auxiliary)
+ */
+export const CloseCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const closeCampaignResponseStartDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CloseCampaignResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "type": zod.enum(['money', 'items', 'both']),
+  "startDate": zod.string().regex(closeCampaignResponseStartDateRegExp),
+  "endDate": zod.string().nullable(),
+  "externalLink": zod.string().nullable().describe('Link to an external donation ministry (shown as link\/QR code)'),
+  "status": zod.enum(['active', 'closed']),
+  "createdByName": zod.string().nullable(),
+  "itemCount": zod.number().describe('Number of aggregated item entries registered'),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary List aggregated donated items of a campaign (no donor identity)
+ */
+export const ListCampaignItemsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListCampaignItemsResponseItem = zod.object({
+  "id": zod.number(),
+  "campaignId": zod.number(),
+  "itemName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string().nullable(),
+  "createdAt": zod.string()
+}).describe('Aggregated item entry. Donor identity is never collected or stored.')
+export const ListCampaignItemsResponse = zod.array(ListCampaignItemsResponseItem)
+
+
+/**
+ * @summary Register donated items in aggregate (leader/auxiliary, never donor identity)
+ */
+export const AddCampaignItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+
+export const AddCampaignItemBody = zod.object({
+  "itemName": zod.string().min(1),
+  "quantity": zod.number().min(1),
+  "unit": zod.string().optional()
+})
+
+export const AddCampaignItemResponse = zod.object({
+  "id": zod.number(),
+  "campaignId": zod.number(),
+  "itemName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string().nullable(),
+  "createdAt": zod.string()
+}).describe('Aggregated item entry. Donor identity is never collected or stored.')
+
+
+/**
+ * @summary Remove a registered item entry (leader/auxiliary)
+ */
+export const DeleteCampaignItemParams = zod.object({
+  "id": zod.coerce.number(),
+  "itemId": zod.coerce.number()
+})
+
+export const DeleteCampaignItemResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List generated reports (leader/auxiliary)
+ */
+export const listReportsResponsePeriodStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listReportsResponsePeriodEndRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListReportsResponseItem = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['monthly', 'on_demand']),
+  "periodStart": zod.string().regex(listReportsResponsePeriodStartRegExp),
+  "periodEnd": zod.string().regex(listReportsResponsePeriodEndRegExp),
+  "createdByName": zod.string().nullable().describe('Null when generated automatically'),
+  "createdAt": zod.string()
+})
+export const ListReportsResponse = zod.array(ListReportsResponseItem)
+
+
+/**
+ * @summary Generate a consolidated report on demand (leader/auxiliary)
+ */
+export const generateReportBodyPeriodStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const generateReportBodyPeriodEndRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const GenerateReportBody = zod.object({
+  "periodStart": zod.string().regex(generateReportBodyPeriodStartRegExp),
+  "periodEnd": zod.string().regex(generateReportBodyPeriodEndRegExp)
+})
+
+export const generateReportResponsePeriodStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const generateReportResponsePeriodEndRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const GenerateReportResponse = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['monthly', 'on_demand']),
+  "periodStart": zod.string().regex(generateReportResponsePeriodStartRegExp),
+  "periodEnd": zod.string().regex(generateReportResponsePeriodEndRegExp),
+  "createdByName": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "data": zod.object({
+  "membersTotal": zod.number(),
+  "membersNew": zod.number(),
+  "guestsNew": zod.number(),
+  "guestsTotal": zod.number(),
+  "meetingsHeld": zod.number().describe('Weekly meeting occurrences in the period (excluding cancelled)'),
+  "eventsCount": zod.number().describe('Free events in the period'),
+  "tasksTotal": zod.number(),
+  "tasksDone": zod.number(),
+  "discipleshipTotal": zod.number(),
+  "discipleshipActive": zod.number(),
+  "campaigns": zod.array(zod.object({
+  "campaignId": zod.number(),
+  "title": zod.string(),
+  "status": zod.enum(['active', 'closed']),
+  "items": zod.array(zod.object({
+  "itemName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string().nullable()
+}))
+}))
+}).describe('Consolidated report data. Never includes donor identity or individual financial values.')
+})
+
+
+/**
+ * @summary Get a report with full data (leader/auxiliary)
+ */
+export const GetReportParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const getReportResponsePeriodStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const getReportResponsePeriodEndRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const GetReportResponse = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['monthly', 'on_demand']),
+  "periodStart": zod.string().regex(getReportResponsePeriodStartRegExp),
+  "periodEnd": zod.string().regex(getReportResponsePeriodEndRegExp),
+  "createdByName": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "data": zod.object({
+  "membersTotal": zod.number(),
+  "membersNew": zod.number(),
+  "guestsNew": zod.number(),
+  "guestsTotal": zod.number(),
+  "meetingsHeld": zod.number().describe('Weekly meeting occurrences in the period (excluding cancelled)'),
+  "eventsCount": zod.number().describe('Free events in the period'),
+  "tasksTotal": zod.number(),
+  "tasksDone": zod.number(),
+  "discipleshipTotal": zod.number(),
+  "discipleshipActive": zod.number(),
+  "campaigns": zod.array(zod.object({
+  "campaignId": zod.number(),
+  "title": zod.string(),
+  "status": zod.enum(['active', 'closed']),
+  "items": zod.array(zod.object({
+  "itemName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string().nullable()
+}))
+}))
+}).describe('Consolidated report data. Never includes donor identity or individual financial values.')
+})
+
+
+/**
+ * @summary Delete a report (leader/auxiliary)
+ */
+export const DeleteReportParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteReportResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Export a report as CSV (leader/auxiliary)
+ */
+export const ExportReportCsvParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ExportReportCsvResponse = zod.unknown()
+
+
+/**
+ * @summary Get the VAPID public key for browser push subscription
+ */
+export const GetPushPublicKeyResponse = zod.object({
+  "publicKey": zod.string()
+})
+
+
+/**
+ * @summary Register the browser push subscription for the current user
+ */
+
+
+
+
+
+export const SubscribePushBody = zod.object({
+  "endpoint": zod.string().min(1),
+  "p256dh": zod.string().min(1),
+  "auth": zod.string().min(1)
+})
+
+export const SubscribePushResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Remove a push subscription for the current user
+ */
+
+
+
+export const UnsubscribePushBody = zod.object({
+  "endpoint": zod.string().min(1)
+})
+
+export const UnsubscribePushResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List my in-app notifications (newest first, latest 50)
+ */
+export const ListNotificationsResponseItem = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['event', 'task', 'announcement']),
+  "title": zod.string(),
+  "body": zod.string().nullable(),
+  "link": zod.string().nullable(),
+  "read": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListNotificationsResponse = zod.array(ListNotificationsResponseItem)
+
+
+/**
+ * @summary Mark all my notifications as read
+ */
+export const MarkNotificationsReadResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Get the cell configuration (name, photo)
+ */
+export const GetCellConfigResponse = zod.object({
+  "name": zod.string(),
+  "photoUrl": zod.string().nullable(),
+  "updatedAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary Update the cell configuration (leader/auxiliary)
+ */
+
+
+
+export const UpdateCellConfigBody = zod.object({
+  "name": zod.string().min(1),
+  "photoUrl": zod.string().nullish()
+})
+
+export const UpdateCellConfigResponse = zod.object({
+  "name": zod.string(),
+  "photoUrl": zod.string().nullable(),
+  "updatedAt": zod.string().nullable()
+})
+
+

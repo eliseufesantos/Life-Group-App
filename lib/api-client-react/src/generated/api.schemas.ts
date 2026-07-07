@@ -531,6 +531,256 @@ export interface UploadUrlResponse {
   metadata?: UploadUrlRequest;
 }
 
+export type CampaignType = typeof CampaignType[keyof typeof CampaignType];
+
+
+export const CampaignType = {
+  money: 'money',
+  items: 'items',
+  both: 'both',
+} as const;
+
+export type CampaignStatus = typeof CampaignStatus[keyof typeof CampaignStatus];
+
+
+export const CampaignStatus = {
+  active: 'active',
+  closed: 'closed',
+} as const;
+
+export interface Campaign {
+  id: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  type: CampaignType;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  startDate: string;
+  /** @nullable */
+  endDate: string | null;
+  /**
+     * Link to an external donation ministry (shown as link/QR code)
+     * @nullable
+     */
+  externalLink: string | null;
+  status: CampaignStatus;
+  /** @nullable */
+  createdByName: string | null;
+  /** Number of aggregated item entries registered */
+  itemCount: number;
+  createdAt: string;
+}
+
+export type CampaignInputType = typeof CampaignInputType[keyof typeof CampaignInputType];
+
+
+export const CampaignInputType = {
+  money: 'money',
+  items: 'items',
+  both: 'both',
+} as const;
+
+export interface CampaignInput {
+  /** @minLength 1 */
+  title: string;
+  description?: string;
+  type: CampaignInputType;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  startDate: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  endDate?: string;
+  externalLink?: string;
+}
+
+export type CampaignUpdateType = typeof CampaignUpdateType[keyof typeof CampaignUpdateType];
+
+
+export const CampaignUpdateType = {
+  money: 'money',
+  items: 'items',
+  both: 'both',
+} as const;
+
+export interface CampaignUpdate {
+  /** @minLength 1 */
+  title?: string;
+  description?: string;
+  type?: CampaignUpdateType;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  startDate?: string;
+  /** @nullable */
+  endDate?: string | null;
+  /** @nullable */
+  externalLink?: string | null;
+}
+
+/**
+ * Aggregated item entry. Donor identity is never collected or stored.
+ */
+export interface CampaignItem {
+  id: number;
+  campaignId: number;
+  itemName: string;
+  quantity: number;
+  /** @nullable */
+  unit: string | null;
+  createdAt: string;
+}
+
+export interface CampaignItemInput {
+  /** @minLength 1 */
+  itemName: string;
+  /** @minimum 1 */
+  quantity: number;
+  unit?: string;
+}
+
+export type ReportSummaryType = typeof ReportSummaryType[keyof typeof ReportSummaryType];
+
+
+export const ReportSummaryType = {
+  monthly: 'monthly',
+  on_demand: 'on_demand',
+} as const;
+
+export interface ReportSummary {
+  id: number;
+  type: ReportSummaryType;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  periodStart: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  periodEnd: string;
+  /**
+     * Null when generated automatically
+     * @nullable
+     */
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type ReportType = typeof ReportType[keyof typeof ReportType];
+
+
+export const ReportType = {
+  monthly: 'monthly',
+  on_demand: 'on_demand',
+} as const;
+
+export type ReportCampaignStatus = typeof ReportCampaignStatus[keyof typeof ReportCampaignStatus];
+
+
+export const ReportCampaignStatus = {
+  active: 'active',
+  closed: 'closed',
+} as const;
+
+export interface ReportCampaignItem {
+  itemName: string;
+  quantity: number;
+  /** @nullable */
+  unit: string | null;
+}
+
+export interface ReportCampaign {
+  campaignId: number;
+  title: string;
+  status: ReportCampaignStatus;
+  items: ReportCampaignItem[];
+}
+
+/**
+ * Consolidated report data. Never includes donor identity or individual financial values.
+ */
+export interface ReportData {
+  membersTotal: number;
+  membersNew: number;
+  guestsNew: number;
+  guestsTotal: number;
+  /** Weekly meeting occurrences in the period (excluding cancelled) */
+  meetingsHeld: number;
+  /** Free events in the period */
+  eventsCount: number;
+  tasksTotal: number;
+  tasksDone: number;
+  discipleshipTotal: number;
+  discipleshipActive: number;
+  campaigns: ReportCampaign[];
+}
+
+export interface Report {
+  id: number;
+  type: ReportType;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  periodStart: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  periodEnd: string;
+  /** @nullable */
+  createdByName: string | null;
+  createdAt: string;
+  data: ReportData;
+}
+
+export interface ReportGenerateInput {
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  periodStart: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  periodEnd: string;
+}
+
+export interface PushPublicKey {
+  publicKey: string;
+}
+
+export interface PushSubscribeInput {
+  /** @minLength 1 */
+  endpoint: string;
+  /** @minLength 1 */
+  p256dh: string;
+  /** @minLength 1 */
+  auth: string;
+}
+
+export interface PushUnsubscribeInput {
+  /** @minLength 1 */
+  endpoint: string;
+}
+
+export type AppNotificationType = typeof AppNotificationType[keyof typeof AppNotificationType];
+
+
+export const AppNotificationType = {
+  event: 'event',
+  task: 'task',
+  announcement: 'announcement',
+} as const;
+
+export interface AppNotification {
+  id: number;
+  type: AppNotificationType;
+  title: string;
+  /** @nullable */
+  body: string | null;
+  /** @nullable */
+  link: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface CellConfig {
+  name: string;
+  /** @nullable */
+  photoUrl: string | null;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export interface CellConfigInput {
+  /** @minLength 1 */
+  name: string;
+  /** @nullable */
+  photoUrl?: string | null;
+}
+
 export type ListMembersParams = {
 /**
  * Filter by record status

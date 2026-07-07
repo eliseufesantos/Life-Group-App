@@ -19,6 +19,7 @@ import {
   ClearOccurrenceOverrideParams,
 } from "@workspace/api-zod";
 import { requireAuth, requirePrivileged, type AuthedRequest } from "../lib/auth";
+import { notifyUsers } from "../lib/push";
 
 const router: IRouter = Router();
 
@@ -262,6 +263,14 @@ router.post(
         createdBy: req.user!.id,
       })
       .returning();
+    void notifyUsers({
+      userIds: null,
+      excludeUserId: req.user!.id,
+      type: "event",
+      title: "Novo evento no calendário",
+      body: `${title}${date ? ` — ${date}` : ""}`,
+      link: "/calendario",
+    });
     res.status(201).json(toFreeEvent(evento));
   },
 );
