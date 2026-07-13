@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { LogOut, Moon, Sun, Bell, Info } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { useToast } from "@/hooks/use-toast";
 import {
   isPushSupported,
@@ -137,8 +138,8 @@ export default function Settings() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-serif font-bold text-foreground">Configurações</h1>
+    <div className="px-5 pt-6 space-y-5">
+      <PageHeader title="Ajustes" subtitle="Tema, notificações e sessão" />
 
       <Card>
         <CardHeader><CardTitle>Aparência</CardTitle></CardHeader>

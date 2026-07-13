@@ -1,20 +1,18 @@
-import { useState, useMemo, useCallback } from "react";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays } from "date-fns";
+import { useState, useCallback } from "react";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Settings, Plus, X, Clock, MapPin, AlignLeft, Info, Trash2, Edit } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Settings, Plus, X, MapPin, AlignLeft, Trash2, Edit, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useQueryClient } from "@tanstack/react-query";
-import { 
-  useGetCurrentUser, 
-  useGetRecurrence, 
+import {
+  useGetCurrentUser,
+  useGetRecurrence,
   useListCalendarEvents,
   useSetRecurrence,
   useCreateEvent,
@@ -29,7 +27,7 @@ import {
 } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -56,24 +54,22 @@ const overrideSchema = z.object({
   canceled: z.boolean().default(false),
 });
 
+const WEEKDAY_LETTERS = ["D", "S", "T", "Q", "Q", "S", "S"];
+
 export default function Calendar() {
   const { data: user } = useGetCurrentUser();
   const isLeaderOrAux = user?.role === "leader" || user?.role === "auxiliary";
   const isLeader = user?.role === "leader";
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<"month" | "week">("month");
-  
-  // Date ranges
+  const [selectedDay, setSelectedDay] = useState(new Date());
+
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday
-  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
-
-  const from = viewMode === "month" ? format(monthStart, "yyyy-MM-dd") : format(weekStart, "yyyy-MM-dd");
-  const to = viewMode === "month" ? format(monthEnd, "yyyy-MM-dd") : format(weekEnd, "yyyy-MM-dd");
+  const from = format(monthStart, "yyyy-MM-dd");
+  const to = format(monthEnd, "yyyy-MM-dd");
 
   const { data: recurrence, isLoading: isLoadingRecurrence } = useGetRecurrence();
   const { data: events, isLoading: isLoadingEvents } = useListCalendarEvents(
@@ -81,10 +77,12 @@ export default function Calendar() {
     { query: { queryKey: getListCalendarEventsQueryKey({ from, to }) } }
   );
 
-  const nextPeriod = () => setCurrentDate(viewMode === "month" ? addMonths(currentDate, 1) : addWeeks(currentDate, 1));
-  const prevPeriod = () => setCurrentDate(viewMode === "month" ? subMonths(currentDate, 1) : subWeeks(currentDate, 1));
+  const goToMonth = (date: Date) => {
+    setCurrentDate(date);
+    setSelectedDay(isSameMonth(date, new Date()) ? new Date() : startOfMonth(date));
+  };
 
-  const days = eachDayOfInterval({ start: viewMode === "month" ? monthStart : weekStart, end: viewMode === "month" ? monthEnd : weekEnd });
+  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   const getEventsForDay = useCallback((day: Date) => {
     if (!events) return [];
@@ -94,7 +92,7 @@ export default function Calendar() {
 
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isEventDetailOpen, setIsEventDetailOpen] = useState(false);
-  
+
   const [isRecurrenceOpen, setIsRecurrenceOpen] = useState(false);
   const [isNewEventOpen, setIsNewEventOpen] = useState(false);
   const [isEditEventOpen, setIsEditEventOpen] = useState(false);
@@ -160,7 +158,7 @@ export default function Calendar() {
     eventForm.reset({
       title: "",
       category: "Confraternização",
-      date: format(currentDate, "yyyy-MM-dd"),
+      date: format(selectedDay, "yyyy-MM-dd"),
       time: "",
       location: "",
       description: "",
@@ -266,186 +264,182 @@ export default function Calendar() {
 
   if (isLoadingEvents || isLoadingRecurrence) {
     return (
-      <div className="p-6 space-y-4">
-        <Skeleton className="h-8 w-48 mb-6" />
-        <Skeleton className="h-[600px] w-full rounded-xl" />
+      <div className="space-y-5 px-5 pt-2">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-96 w-full rounded-3xl" />
+        <Skeleton className="h-24 w-full rounded-2xl" />
       </div>
     );
   }
 
-  return (
-    <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-serif font-bold text-foreground">Calendário</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Acompanhe nossos encontros e eventos.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="bg-muted p-1 rounded-md flex items-center mr-2">
-            <Button 
-              variant={viewMode === "month" ? "secondary" : "ghost"} 
-              size="sm" 
-              onClick={() => setViewMode("month")}
-              className="text-xs h-7 px-3"
-            >
-              Mês
-            </Button>
-            <Button 
-              variant={viewMode === "week" ? "secondary" : "ghost"} 
-              size="sm" 
-              onClick={() => setViewMode("week")}
-              className="text-xs h-7 px-3"
-            >
-              Semana
-            </Button>
-          </div>
+  const selectedDayEvents = getEventsForDay(selectedDay);
+  const dayLabelRaw = format(selectedDay, "EEEE, d 'de' MMMM", { locale: ptBR });
+  const dayLabel = dayLabelRaw.charAt(0).toUpperCase() + dayLabelRaw.slice(1);
 
+  return (
+    <div className="space-y-6 px-5 pt-2">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-2xl font-extrabold tracking-tight text-foreground">Agenda</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Encontros e eventos da célula.</p>
+        </div>
+        <div className="flex items-center gap-2">
           {isLeader && (
-            <Button variant="outline" size="sm" className="gap-2" onClick={handleOpenRecurrence}>
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Configurar Recorrência</span>
+            <Button variant="outline" size="icon" className="rounded-full bg-card" onClick={handleOpenRecurrence} aria-label="Configurar recorrência">
+              <CalendarClock className="h-5 w-5" />
             </Button>
           )}
           {isLeaderOrAux && (
-            <Button size="sm" className="gap-2" onClick={handleOpenNewEvent}>
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Novo Evento</span>
+            <Button size="icon" className="rounded-full shadow-md" onClick={handleOpenNewEvent} aria-label="Novo evento">
+              <Plus className="h-5 w-5" />
             </Button>
           )}
         </div>
       </div>
 
-      <Card className="overflow-hidden border-border shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/20">
-          <h2 className="text-xl font-bold font-serif capitalize">
-            {viewMode === "month" 
-              ? format(currentDate, "MMMM yyyy", { locale: ptBR })
-              : `${format(weekStart, "d MMM", { locale: ptBR })} - ${format(weekEnd, "d MMM", { locale: ptBR })}`}
+      {/* Grade do mês */}
+      <section className="rounded-3xl border border-card-border bg-card p-4 shadow-sm">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="font-serif text-lg font-extrabold capitalize tracking-tight">
+            {format(currentDate, "MMMM yyyy", { locale: ptBR })}
           </h2>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={prevPeriod}>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => goToMonth(subMonths(currentDate, 1))}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted"
+              aria-label="Mês anterior"
+            >
               <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setCurrentDate(new Date())}>
+            </button>
+            <button
+              onClick={() => goToMonth(new Date())}
+              className="flex h-9 items-center rounded-full px-3 text-xs font-bold text-primary transition-colors active:bg-accent"
+            >
               Hoje
-            </Button>
-            <Button variant="ghost" size="icon" onClick={nextPeriod}>
+            </button>
+            <button
+              onClick={() => goToMonth(addMonths(currentDate, 1))}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted"
+              aria-label="Próximo mês"
+            >
               <ChevronRight className="h-5 w-5" />
-            </Button>
+            </button>
           </div>
         </div>
-        
-        {viewMode === "month" ? (
-          <>
-            <div className="grid grid-cols-7 border-b bg-muted/40">
-              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
-                <div key={day} className="px-2 py-3 text-center text-sm font-medium text-muted-foreground">
-                  {day}
-                </div>
-              ))}
-            </div>
 
-            <div className="grid grid-cols-7 auto-rows-[minmax(100px,auto)]">
-              {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-                <div key={`empty-${i}`} className="border-r border-b bg-muted/10 p-2" />
-              ))}
-              
-              {days.map((day, dayIdx) => {
-                const dayEvents = getEventsForDay(day);
-                const isToday = isSameDay(day, new Date());
-                
-                return (
-                  <div 
-                    key={day.toString()} 
-                    className={cn(
-                      "border-r border-b p-1 sm:p-2 transition-colors min-h-[100px]",
-                      isToday ? "bg-primary/5" : "hover:bg-muted/30"
-                    )}
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className={cn(
-                        "inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full text-sm font-medium",
-                        isToday ? "bg-primary text-primary-foreground" : "text-foreground"
-                      )}>
-                        {format(day, "d")}
-                      </span>
-                    </div>
-                    <div className="space-y-1 mt-1">
-                      {dayEvents.map((event, idx) => (
-                        <div 
-                          key={`${event.date}-${idx}`}
-                          onClick={() => { setSelectedEvent(event); setIsEventDetailOpen(true); }}
-                          className={cn(
-                            "text-xs px-1.5 py-1 rounded truncate flex flex-col gap-0.5 cursor-pointer hover:opacity-80 transition-opacity",
-                            event.canceled ? "bg-muted text-muted-foreground line-through opacity-70" :
-                            event.type === "meeting" ? "bg-primary/15 text-primary-foreground font-medium text-primary" :
-                            "bg-secondary text-secondary-foreground"
-                          )}
-                        >
-                          <span className="truncate">{event.time} {event.title}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+        <div className="mt-3 grid grid-cols-7">
+          {WEEKDAY_LETTERS.map((letter, i) => (
+            <div key={i} className="py-1 text-center text-[11px] font-bold text-muted-foreground">
+              {letter}
             </div>
-          </>
-        ) : (
-          <div className="divide-y">
-            {days.map((day) => {
-              const dayEvents = getEventsForDay(day);
-              const isToday = isSameDay(day, new Date());
-              return (
-                <div key={day.toString()} className={cn("flex flex-col sm:flex-row p-4 gap-4", isToday && "bg-primary/5")}>
-                  <div className="sm:w-24 flex-shrink-0 text-center sm:text-left flex flex-row sm:flex-col items-center sm:items-start gap-2 sm:gap-0">
-                    <span className="text-sm text-muted-foreground uppercase font-medium">{format(day, "EEE", { locale: ptBR })}</span>
-                    <span className={cn(
-                      "text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full",
-                      isToday && "bg-primary text-primary-foreground"
-                    )}>
-                      {format(day, "d")}
-                    </span>
-                  </div>
-                  <div className="flex-1 space-y-3">
-                    {dayEvents.length > 0 ? dayEvents.map((event, idx) => (
-                      <Card 
-                        key={`${event.date}-${idx}`} 
-                        className={cn(
-                          "cursor-pointer hover:shadow-md transition-all overflow-hidden border-l-4",
-                          event.canceled ? "border-l-muted opacity-60" :
-                          event.type === "meeting" ? "border-l-primary" : "border-l-secondary"
-                        )}
-                        onClick={() => { setSelectedEvent(event); setIsEventDetailOpen(true); }}
-                      >
-                        <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div className={cn(event.canceled && "line-through text-muted-foreground")}>
-                            <h4 className="font-semibold text-foreground flex items-center gap-2">
-                              {event.title}
-                              {event.overridden && <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded uppercase font-bold">Ajustado</span>}
-                            </h4>
-                            {event.category && <p className="text-xs text-muted-foreground mt-0.5">{event.category}</p>}
-                          </div>
-                          <div className="flex flex-col sm:items-end text-sm text-muted-foreground gap-1">
-                            {event.time && <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {event.time}</span>}
-                            {event.location && <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> <span className="truncate max-w-[200px]">{event.location}</span></span>}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )) : (
-                      <div className="h-full min-h-[3rem] flex items-center text-sm text-muted-foreground/50 italic px-4 border border-dashed rounded-lg">
-                        Nenhum evento agendado
-                      </div>
-                    )}
-                  </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-y-0.5">
+          {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+            <div key={`empty-${i}`} />
+          ))}
+          {days.map((day) => {
+            const dayEvents = getEventsForDay(day);
+            const isToday = isSameDay(day, new Date());
+            const isSelected = isSameDay(day, selectedDay);
+            return (
+              <button
+                key={day.toString()}
+                onClick={() => setSelectedDay(day)}
+                className="flex flex-col items-center gap-0.5 py-1"
+              >
+                <span
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors",
+                    isSelected
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : isToday
+                        ? "bg-accent text-primary"
+                        : "text-foreground"
+                  )}
+                >
+                  {format(day, "d")}
+                </span>
+                <span className="flex h-1.5 items-center gap-0.5">
+                  {dayEvents.slice(0, 3).map((e, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        e.canceled
+                          ? "bg-muted-foreground/40"
+                          : e.type === "meeting"
+                            ? (isSelected ? "bg-primary/60" : "bg-primary")
+                            : "bg-sky-400"
+                      )}
+                    />
+                  ))}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Agenda do dia selecionado */}
+      <section>
+        <h3 className="mb-2.5 px-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          {dayLabel}
+        </h3>
+        {selectedDayEvents.length > 0 ? (
+          <div className="space-y-2.5">
+            {selectedDayEvents.map((event, idx) => (
+              <button
+                key={`${event.date}-${idx}`}
+                onClick={() => { setSelectedEvent(event); setIsEventDetailOpen(true); }}
+                className="flex w-full items-center gap-3.5 rounded-2xl border border-card-border bg-card p-4 text-left shadow-sm transition-colors active:bg-muted/50"
+              >
+                <div className="w-12 shrink-0 text-center">
+                  <span className={cn("text-sm font-bold", event.canceled ? "text-muted-foreground line-through" : "text-primary")}>
+                    {event.time || "—"}
+                  </span>
                 </div>
-              )
-            })}
+                <div
+                  className={cn(
+                    "h-10 w-1 shrink-0 rounded-full",
+                    event.canceled ? "bg-muted-foreground/30" : event.type === "meeting" ? "bg-primary" : "bg-sky-400"
+                  )}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className={cn("truncate text-sm font-semibold text-foreground", event.canceled && "text-muted-foreground line-through")}>
+                    {event.title}
+                  </p>
+                  <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                    {event.category && <span>{event.category}</span>}
+                    {event.location && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{event.location}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+                {event.canceled && (
+                  <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-destructive">
+                    Cancelado
+                  </span>
+                )}
+                {!event.canceled && event.overridden && (
+                  <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                    Ajustado
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-border bg-card/50 p-6 text-center text-sm text-muted-foreground">
+            Nenhum evento neste dia.
           </div>
         )}
-      </Card>
+      </section>
 
       {/* Recurrence Dialog */}
       <Dialog open={isRecurrenceOpen} onOpenChange={setIsRecurrenceOpen}>
@@ -691,43 +685,48 @@ export default function Calendar() {
               <DialogHeader>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn(
-                    "px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider",
-                    selectedEvent.type === "meeting" ? "bg-primary/20 text-primary" : "bg-secondary text-secondary-foreground"
+                    "px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                    selectedEvent.type === "meeting" ? "bg-accent text-primary" : "bg-secondary text-secondary-foreground"
                   )}>
                     {selectedEvent.category || (selectedEvent.type === "meeting" ? "Reunião" : "Evento")}
                   </span>
                   {selectedEvent.canceled && (
-                    <span className="bg-destructive/10 text-destructive px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider">
+                    <span className="bg-destructive/10 text-destructive px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                       Cancelado
                     </span>
                   )}
                   {selectedEvent.overridden && (
-                    <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-semibold uppercase tracking-wider">
+                    <span className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                       Ajustado
                     </span>
                   )}
                 </div>
-                <DialogTitle className={cn("text-2xl font-serif", selectedEvent.canceled && "line-through text-muted-foreground")}>
+                <DialogTitle className={cn("text-2xl font-serif font-extrabold tracking-tight", selectedEvent.canceled && "line-through text-muted-foreground")}>
                   {selectedEvent.title}
                 </DialogTitle>
               </DialogHeader>
-              
+
               <div className="space-y-4 py-4">
                 <div className="flex items-start gap-3">
                   <CalendarIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <div className="font-medium">{format(parseISO(selectedEvent.date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</div>
+                    <div className="font-medium">
+                      {(() => {
+                        const d = format(parseISO(selectedEvent.date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+                        return d.charAt(0).toUpperCase() + d.slice(1);
+                      })()}
+                    </div>
                     {selectedEvent.time && <div className="text-muted-foreground">às {selectedEvent.time}</div>}
                   </div>
                 </div>
-                
+
                 {selectedEvent.location && (
                   <div className="flex items-start gap-3">
                     <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
                     <div>{selectedEvent.location}</div>
                   </div>
                 )}
-                
+
                 {selectedEvent.description && (
                   <div className="flex items-start gap-3">
                     <AlignLeft className="h-5 w-5 text-muted-foreground mt-0.5" />
@@ -748,7 +747,7 @@ export default function Calendar() {
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex gap-2 justify-end flex-wrap">
                       <Button variant="outline" size="sm" onClick={() => handleOpenOverride(selectedEvent)} className="gap-2">
                         <Settings className="h-4 w-4" /> Ajustar Data Específica
                       </Button>

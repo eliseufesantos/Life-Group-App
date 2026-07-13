@@ -10,7 +10,6 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Verify from "@/pages/verify";
-import HomeDashboard from "@/pages/home";
 import Members from "@/pages/members";
 import MemberDetail from "@/pages/member-detail";
 import Discipleship from "@/pages/discipleship";
@@ -36,7 +35,7 @@ function Router() {
         <AuthGate>
           <Layout>
             <Switch>
-              <Route path="/" component={HomeDashboard} />
+              <Route path="/" component={Board} />
               <Route path="/mural" component={Board} />
               <Route path="/calendario" component={Calendar} />
               <Route path="/membros" component={Members} />

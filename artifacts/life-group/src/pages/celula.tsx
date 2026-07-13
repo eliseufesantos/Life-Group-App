@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ObjectUploader } from "@workspace/object-storage-web";
-import { Home, ArrowLeft, CalendarClock, ImageIcon } from "lucide-react";
-import { Link } from "wouter";
+import { CalendarClock, ImageIcon } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 const WEEKDAYS = [
   "Domingo",
@@ -114,15 +114,8 @@ export default function CelulaConfig() {
   const src = photoSrc(photoUrl);
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl mx-auto">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/perfil"><ArrowLeft className="h-5 w-5" /></Link>
-        </Button>
-        <h1 className="text-2xl font-serif font-bold text-foreground flex items-center gap-2">
-          <Home className="h-6 w-6 text-primary" /> Configurações da Célula
-        </h1>
-      </div>
+    <div className="px-5 pt-6 space-y-5">
+      <PageHeader title="Célula" subtitle="Identidade e reunião semanal" />
 
       <Card>
         <CardHeader><CardTitle>Identidade</CardTitle></CardHeader>
@@ -140,7 +133,7 @@ export default function CelulaConfig() {
               onComplete={handleUploadComplete}
               maxNumberOfFiles={1}
               maxFileSize={10 * 1024 * 1024}
-              buttonClassName="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+              buttonClassName="inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-card shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
             >
               Alterar foto
             </ObjectUploader>

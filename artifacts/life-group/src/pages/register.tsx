@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useParams } from "wouter";
 import { Spinner } from "@/components/ui/spinner";
+import { Church } from "lucide-react";
 
 const schema = z.object({
   name: z.string().min(2, "Nome é obrigatório"),
@@ -52,13 +53,19 @@ export default function Register() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="space-y-2 text-center">
-          <h1 className="text-3xl font-serif font-bold text-primary">Junte-se à Célula</h1>
-          <p className="text-muted-foreground">Preencha seus dados para participar.</p>
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-background p-6">
+      <div className="w-full max-w-sm">
+        <div className="text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,hsl(217_91%_52%),hsl(226_80%_42%))] text-white shadow-lg">
+            <Church className="h-7 w-7" />
+          </span>
+          <h1 className="mt-5 font-serif text-3xl font-extrabold tracking-tight text-foreground">
+            Junte-se à célula
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">Preencha seus dados para participar.</p>
         </div>
 
+        <div className="mt-8 rounded-3xl border border-card-border bg-card p-6 shadow-sm">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -100,20 +107,25 @@ export default function Register() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={isPending}>
+            <Button type="submit" size="lg" className="w-full" disabled={isPending}>
               {isPending ? "Enviando..." : "Registrar"}
             </Button>
           </form>
         </Form>
+        </div>
 
         {devLink && (
-          <div className="mt-4 rounded-md bg-muted p-4">
+          <div className="mt-4 rounded-2xl border border-card-border bg-card p-4 shadow-sm">
             <p className="text-sm font-medium">Link de desenvolvimento:</p>
             <a href={devLink} className="text-sm text-primary underline break-all">
               {devLink}
             </a>
           </div>
         )}
+
+        <p className="mt-8 text-center text-xs font-medium text-muted-foreground">
+          Life Group · Paz Church São Paulo
+        </p>
       </div>
     </div>
   );

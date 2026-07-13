@@ -1,21 +1,24 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { Link } from "wouter";
+import { Compass } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">404 Page Not Found</h1>
-          </div>
-
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-[60dvh] w-full flex-col items-center justify-center px-6 text-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-primary">
+        <Compass className="h-7 w-7" />
+      </span>
+      <h1 className="mt-5 font-serif text-2xl font-extrabold tracking-tight text-foreground">
+        Página não encontrada
+      </h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        O endereço que você acessou não existe.
+      </p>
+      <Link
+        href="/"
+        className="mt-6 inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-md"
+      >
+        Voltar ao mural
+      </Link>
     </div>
   );
 }

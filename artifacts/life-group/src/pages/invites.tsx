@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Copy, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
 
 export default function Invites() {
   const { data: invites, isLoading } = useListInvites();
@@ -30,13 +31,16 @@ export default function Invites() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-serif font-bold text-foreground">Convites</h1>
-        <Button onClick={handleCreate} disabled={isPending}>
-          <Plus className="h-4 w-4 mr-2" /> Gerar Convite
-        </Button>
-      </div>
+    <div className="px-5 pt-6 space-y-5">
+      <PageHeader
+        title="Convites"
+        subtitle="Convide novas pessoas para a célula"
+        action={
+          <Button onClick={handleCreate} disabled={isPending}>
+            <Plus className="h-4 w-4" /> Gerar
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div>
