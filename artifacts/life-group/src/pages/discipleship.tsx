@@ -8,8 +8,8 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
+import { PageHeader } from "@/components/page-header";
 
 export default function Discipleship() {
   const { data: discipleships, isLoading } = useListDiscipleships();
@@ -65,12 +65,14 @@ export default function Discipleship() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-serif font-bold text-foreground">Discipulado</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
+    <div className="px-5 pt-6 space-y-5">
+      <PageHeader
+        title="Discipulado"
+        subtitle="Vínculos de discipulado"
+        action={
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2"/> Novo</Button>
+            <Button><Plus className="h-4 w-4"/> Novo</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Novo Discipulado</DialogTitle></DialogHeader>
@@ -97,12 +99,13 @@ export default function Discipleship() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {isLoading ? (
         <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3">
           {discipleships?.map(d => (
             <Card key={d.id}>
               <CardContent className="p-4 flex flex-col gap-4">

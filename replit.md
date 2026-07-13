@@ -22,11 +22,19 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- Frontend (PWA): `artifacts/life-group` — Vite + React + Tailwind v4 + shadcn/radix, roteamento com wouter
+- Design system (tokens de cor/fonte/radius): `artifacts/life-group/src/index.css` (light + dark)
+- Layout do app (header + bottom nav de 3 abas): `artifacts/life-group/src/components/layout.tsx`
+- Header de sub-páginas (botão voltar): `artifacts/life-group/src/components/page-header.tsx`
+- Traduções de role/categoria: `artifacts/life-group/src/lib/labels.ts`
+- API server: `artifacts/api-server`; contrato OpenAPI: `lib/api-spec/openapi.yaml`
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- UI branco + azul (primário `hsl(217 91% 52%)`), inspirada em AbacatePay/biip.club: fundo azul-claro suave, cards brancos rounded-2xl/3xl, botões pill, headings em Plus Jakarta Sans (mapeada em `--app-font-serif`, então `font-serif` = fonte display)
+- Navegação mobile-first com apenas 3 abas: Mural (rota `/`, funde o antigo Início com o mural), Agenda (`/calendario`) e Perfil (`/perfil`, hub que dá acesso a membros, discipulado, convites, campanhas, relatórios, célula, notificações e ajustes)
+- Conteúdo autenticado centralizado em `max-w-lg` (aparência de app mesmo no desktop); sub-páginas usam `PageHeader` com voltar em vez do header de marca
+- Calendário mobile: grade mensal compacta com pontinhos de evento + lista do dia selecionado (sem grade de células gigante)
 
 ## Product
 

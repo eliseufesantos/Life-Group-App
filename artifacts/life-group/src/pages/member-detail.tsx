@@ -13,9 +13,11 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, Trash, UserCheck } from "lucide-react";
+import { Trash, UserCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
+import { roleLabel, categoryLabel } from "@/lib/labels";
 
 const updateSchema = z.object({
   name: z.string().min(2, "Nome é obrigatório"),
@@ -116,13 +118,12 @@ export default function MemberDetail() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Link href="/membros" className="text-muted-foreground hover:text-foreground">
-          <ChevronLeft className="h-6 w-6" />
-        </Link>
-        <h1 className="text-2xl font-serif font-bold text-foreground flex-1 truncate">{member.name}</h1>
-      </div>
+    <div className="px-5 pt-6 space-y-5">
+      <PageHeader
+        title={member.name}
+        subtitle={member.status === "member" ? "Membro" : "Convidado"}
+        backHref="/membros"
+      />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -231,8 +232,8 @@ export default function MemberDetail() {
             <Badge variant={member.status === "member" ? "default" : "secondary"}>
               {member.status === "member" ? "Membro" : "Convidado"}
             </Badge>
-            {member.role && <Badge variant="outline" className="capitalize border-primary/50 text-primary">{member.role}</Badge>}
-            {member.categories.map((c) => <Badge key={c} variant="outline" className="capitalize">{c === "host" ? "Anfitrião" : c === "discipler" ? "Discipulador" : "Discípulo"}</Badge>)}
+            {member.role && <Badge variant="outline" className="border-primary/50 text-primary">{roleLabel(member.role)}</Badge>}
+            {member.categories.map((c) => <Badge key={c} variant="outline">{categoryLabel(c)}</Badge>)}
           </div>
           {isLeaderOrAux && (
             <div className="grid sm:grid-cols-2 gap-4 mt-4">

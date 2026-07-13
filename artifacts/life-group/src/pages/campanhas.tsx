@@ -50,19 +50,17 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import {
-  HandCoins,
   Plus,
   ExternalLink,
   QrCode,
   Package,
   Trash2,
   Lock,
-  ArrowLeft,
   ShieldCheck,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Link } from "wouter";
+import { PageHeader } from "@/components/page-header";
 
 const TYPE_LABELS: Record<string, string> = {
   money: "Financeira",
@@ -392,20 +390,14 @@ export default function Campanhas() {
   );
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/perfil"><ArrowLeft className="h-5 w-5" /></Link>
-          </Button>
-          <h1 className="text-2xl font-serif font-bold text-foreground flex items-center gap-2">
-            <HandCoins className="h-6 w-6 text-primary" /> Campanhas
-          </h1>
-        </div>
-        {canManage && (
+    <div className="px-5 pt-6 space-y-5">
+      <PageHeader
+        title="Campanhas"
+        subtitle="Doações e arrecadações"
+        action={canManage ? (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button size="sm"><Plus className="h-4 w-4 mr-2" /> Nova Campanha</Button>
+              <Button size="sm"><Plus className="h-4 w-4" /> Nova</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Nova Campanha</DialogTitle></DialogHeader>
@@ -428,10 +420,10 @@ export default function Campanhas() {
               />
             </DialogContent>
           </Dialog>
-        )}
-      </div>
+        ) : undefined}
+      />
 
-      <div className="flex items-start gap-2 rounded-md border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+      <div className="flex items-start gap-2 rounded-2xl border border-card-border bg-card px-3.5 py-2.5 text-xs text-muted-foreground shadow-sm">
         <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
         <span>
           Privacidade garantida: o app nunca registra quem doou nem valores individuais. Doações financeiras

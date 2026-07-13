@@ -15,6 +15,8 @@ import { Search, Plus, User, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
+import { categoryLabel } from "@/lib/labels";
 
 const guestSchema = z.object({
   name: z.string().min(2, "Nome é obrigatório"),
@@ -90,19 +92,19 @@ export default function Members() {
   );
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-serif font-bold text-foreground">Pessoas</h1>
-        
-        {isLeaderOrAux && (
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="flex-1 sm:flex-none">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Importar CSV
-                </Button>
-              </DialogTrigger>
+    <div className="px-5 pt-6 space-y-5">
+      <PageHeader
+        title="Pessoas"
+        subtitle="Membros e convidados da célula"
+        action={
+          isLeaderOrAux ? (
+            <div className="flex shrink-0 gap-2">
+              <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="icon" className="rounded-full bg-card" aria-label="Importar CSV">
+                    <Upload className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Importar Membros</DialogTitle>
@@ -126,8 +128,8 @@ export default function Members() {
 
             <Dialog open={guestDialogOpen} onOpenChange={setGuestDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="flex-1 sm:flex-none">
-                  <Plus className="mr-2 h-4 w-4" />
+                <Button>
+                  <Plus className="h-4 w-4" />
                   Convidado
                 </Button>
               </DialogTrigger>
@@ -166,25 +168,26 @@ export default function Members() {
               </Form>
             </DialogContent>
           </Dialog>
-          </div>
-        )}
-      </div>
+            </div>
+          ) : undefined
+        }
+      />
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por nome..." 
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="h-11 rounded-full border-card-border bg-card pl-10 shadow-sm"
           />
         </div>
         <Tabs value={filter} onValueChange={(v: any) => setFilter(v)}>
-          <TabsList>
-            <TabsTrigger value="all">Todos</TabsTrigger>
-            <TabsTrigger value="member">Membros</TabsTrigger>
-            <TabsTrigger value="guest">Convidados</TabsTrigger>
+          <TabsList className="w-full">
+            <TabsTrigger value="all" className="flex-1">Todos</TabsTrigger>
+            <TabsTrigger value="member" className="flex-1">Membros</TabsTrigger>
+            <TabsTrigger value="guest" className="flex-1">Convidados</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -209,8 +212,8 @@ export default function Members() {
                         {member.status === "member" ? "Membro" : "Convidado"}
                       </Badge>
                       {member.categories.map((cat) => (
-                        <Badge key={cat} variant="outline" className="capitalize">
-                          {cat}
+                        <Badge key={cat} variant="outline">
+                          {categoryLabel(cat)}
                         </Badge>
                       ))}
                     </div>

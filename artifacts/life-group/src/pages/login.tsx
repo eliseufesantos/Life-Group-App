@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { Church } from "lucide-react";
 
 const schema = z.object({
   email: z.string().email("E-mail inválido"),
@@ -40,42 +41,58 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="space-y-2 text-center">
-          <h1 className="text-3xl font-serif font-bold text-primary">Bem-vindo à Célula</h1>
-          <p className="text-muted-foreground">Insira seu e-mail para acessar.</p>
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-background p-6">
+      <div className="w-full max-w-sm">
+        <div className="text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,hsl(217_91%_52%),hsl(226_80%_42%))] text-white shadow-lg">
+            <Church className="h-7 w-7" />
+          </span>
+          <h1 className="mt-5 font-serif text-3xl font-extrabold tracking-tight text-foreground">
+            Bem-vindo(a)!
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Tudo da sua célula em um só lugar.
+          </p>
         </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail</FormLabel>
-                  <FormControl>
-                    <Input placeholder="seu@email.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? "Enviando..." : "Entrar"}
-            </Button>
-          </form>
-        </Form>
+        <div className="mt-8 rounded-3xl border border-card-border bg-card p-6 shadow-sm">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail</FormLabel>
+                    <FormControl>
+                      <Input placeholder="seu@email.com" inputMode="email" autoComplete="email" className="h-11" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" size="lg" className="w-full" disabled={isPending}>
+                {isPending ? "Enviando..." : "Receber link de acesso"}
+              </Button>
+            </form>
+          </Form>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Enviaremos um link mágico para o seu e-mail. Sem senha.
+          </p>
+        </div>
 
         {devLink && (
-          <div className="mt-4 rounded-md bg-muted p-4">
+          <div className="mt-4 rounded-2xl border border-card-border bg-card p-4 shadow-sm">
             <p className="text-sm font-medium">Link de desenvolvimento:</p>
             <a href={devLink} className="text-sm text-primary underline break-all">
               {devLink}
             </a>
           </div>
         )}
+
+        <p className="mt-8 text-center text-xs font-medium text-muted-foreground">
+          Life Group · Paz Church São Paulo
+        </p>
       </div>
     </div>
   );

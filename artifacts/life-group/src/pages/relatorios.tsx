@@ -36,10 +36,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { FileBarChart, Plus, Download, Trash2, ArrowLeft, CalendarClock } from "lucide-react";
+import { Plus, Download, Trash2, CalendarClock } from "lucide-react";
 import { format, parseISO, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Link } from "wouter";
+import { PageHeader } from "@/components/page-header";
 
 function fmtDate(d: string) {
   return format(parseISO(d), "dd/MM/yyyy", { locale: ptBR });
@@ -155,19 +155,14 @@ export default function Relatorios() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/perfil"><ArrowLeft className="h-5 w-5" /></Link>
-          </Button>
-          <h1 className="text-2xl font-serif font-bold text-foreground flex items-center gap-2">
-            <FileBarChart className="h-6 w-6 text-primary" /> Relatórios
-          </h1>
-        </div>
-        <Dialog open={genOpen} onOpenChange={setGenOpen}>
+    <div className="px-5 pt-6 space-y-5">
+      <PageHeader
+        title="Relatórios"
+        subtitle="Mensais e sob demanda"
+        action={
+          <Dialog open={genOpen} onOpenChange={setGenOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-2" /> Gerar Relatório</Button>
+            <Button size="sm"><Plus className="h-4 w-4" /> Gerar</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Gerar relatório sob demanda</DialogTitle></DialogHeader>
@@ -211,9 +206,10 @@ export default function Relatorios() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
-      <div className="flex items-start gap-2 rounded-md border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+      <div className="flex items-start gap-2 rounded-2xl border border-card-border bg-card px-3.5 py-2.5 text-xs text-muted-foreground shadow-sm">
         <CalendarClock className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
         <span>
           Um relatório mensal é gerado automaticamente no início de cada mês com os dados do mês anterior.

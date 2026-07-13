@@ -8,10 +8,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Bell, CalendarDays, ClipboardList, Megaphone, CheckCheck, ArrowLeft } from "lucide-react";
+import { Bell, CalendarDays, ClipboardList, Megaphone, CheckCheck } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
+import { PageHeader } from "@/components/page-header";
 
 const TYPE_ICONS = {
   event: CalendarDays,
@@ -38,32 +39,31 @@ export default function Notificacoes() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/"><ArrowLeft className="h-5 w-5" /></Link>
-          </Button>
-          <h1 className="text-2xl font-serif font-bold text-foreground flex items-center gap-2">
-            <Bell className="h-6 w-6 text-primary" /> Notificações
-          </h1>
-        </div>
-        {unreadCount > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={markRead.isPending}
-            onClick={() =>
-              markRead.mutate(undefined, {
-                onSuccess: () =>
-                  queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }),
-              })
-            }
-          >
-            <CheckCheck className="h-4 w-4 mr-2" /> Marcar todas como lidas
-          </Button>
-        )}
-      </div>
+    <div className="px-5 pt-6 space-y-5">
+      <PageHeader
+        title="Notificações"
+        subtitle={unreadCount > 0 ? `${unreadCount} não lida${unreadCount > 1 ? "s" : ""}` : "Tudo em dia"}
+        backHref="/"
+        action={
+          unreadCount > 0 ? (
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full bg-card"
+              aria-label="Marcar todas como lidas"
+              disabled={markRead.isPending}
+              onClick={() =>
+                markRead.mutate(undefined, {
+                  onSuccess: () =>
+                    queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }),
+                })
+              }
+            >
+              <CheckCheck className="h-4 w-4" />
+            </Button>
+          ) : undefined
+        }
+      />
 
       {(notifications ?? []).length === 0 && (
         <Card>
@@ -81,8 +81,8 @@ export default function Notificacoes() {
             <button
               key={n.id}
               className={cn(
-                "w-full text-left rounded-lg border px-4 py-3 transition-colors hover:bg-muted/50",
-                !n.read && "bg-primary/5 border-primary/30",
+                "w-full text-left rounded-2xl border border-card-border bg-card px-4 py-3 shadow-sm transition-colors active:bg-muted/50",
+                !n.read && "border-primary/30 bg-accent/60",
               )}
               onClick={() => {
                 if (n.link) setLocation(n.link);
