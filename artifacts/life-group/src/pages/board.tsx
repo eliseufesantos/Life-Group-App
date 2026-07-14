@@ -38,7 +38,7 @@ export default function Board() {
           Olá, {firstName} 👋
         </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Tudo da nossa célula em um só lugar.
+          Tudo do nosso Life Group em um só lugar.
         </p>
       </div>
 
@@ -58,7 +58,7 @@ export default function Board() {
               )}
             </div>
             <h2 className="mt-4 font-serif text-2xl font-extrabold tracking-tight">
-              Reunião da Célula
+              Encontro do Life Group
             </h2>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium text-white/90">
               <span className="flex items-center gap-1.5">
