@@ -81,7 +81,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let payload = { title: "Célula", body: "", link: "/" };
+  let payload = { title: "Life Group", body: "", link: "/" };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch (e) {

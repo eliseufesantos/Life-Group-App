@@ -60,7 +60,7 @@ export default function Register() {
             <Church className="h-7 w-7" />
           </span>
           <h1 className="mt-5 font-serif text-3xl font-extrabold tracking-tight text-foreground">
-            Junte-se à célula
+            Junte-se ao Life Group
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">Preencha seus dados para participar.</p>
         </div>

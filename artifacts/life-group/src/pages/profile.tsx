@@ -1,25 +1,28 @@
-import { useGetCurrentUser, useGetMemberStats, getGetMemberStatsQueryKey } from "@workspace/api-client-react";
+import {
+  useGetCurrentUser,
+  useGetMemberStats,
+  useListMembers,
+  getGetMemberStatsQueryKey,
+} from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import {
   Users,
-  HeartHandshake,
   Link as LinkIcon,
   HandCoins,
   FileBarChart,
+  ClipboardList,
   Home,
   Bell,
   Settings,
+  Cake,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 
 import { ROLE_LABELS, CATEGORY_LABELS } from "@/lib/labels";
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
-}
+import { calcAge, formatBirthday } from "@/lib/people";
+import { MemberAvatar } from "@/components/people/member-avatar";
 
 function MenuGroup({ title, items }: { title: string; items: { href: string; icon: LucideIcon; label: string; description: string }[] }) {
   if (items.length === 0) return null;
@@ -56,6 +59,9 @@ export default function Profile() {
   const { data: stats } = useGetMemberStats({
     query: { enabled: isLeaderOrAux, queryKey: getGetMemberStatsQueryKey() },
   });
+  // O endpoint /auth/me não expõe avatarPath/birthDate; buscamos o registro
+  // da própria pessoa na lista de membros (client-side).
+  const { data: members } = useListMembers();
 
   if (isLoading) {
     return (
@@ -67,9 +73,11 @@ export default function Profile() {
   }
   if (!user) return null;
 
+  const self = members?.find((m) => m.id === user.id);
+  const age = calcAge(self?.birthDate);
+
   const communityItems = [
-    { href: "/membros", icon: Users, label: "Pessoas", description: "Membros e convidados da célula" },
-    { href: "/discipulado", icon: HeartHandshake, label: "Discipulado", description: "Vínculos de discipulado" },
+    { href: "/membros", icon: Users, label: "Pessoas", description: "Membros e convidados do Life Group" },
     ...(isLeaderOrAux
       ? [{ href: "/convites", icon: LinkIcon, label: "Convites", description: "Convide novas pessoas" }]
       : []),
@@ -79,8 +87,9 @@ export default function Profile() {
     { href: "/campanhas", icon: HandCoins, label: "Campanhas", description: "Doações e arrecadações" },
     ...(isLeaderOrAux
       ? [
+          { href: "/registros", icon: ClipboardList, label: "Registros", description: "Registros dos encontros" },
           { href: "/relatorios", icon: FileBarChart, label: "Relatórios", description: "Relatórios mensais e sob demanda" },
-          { href: "/celula", icon: Home, label: "Célula", description: "Nome, foto e reunião semanal" },
+          { href: "/celula", icon: Home, label: "Life Group", description: "Nome, foto e reunião semanal" },
         ]
       : []),
   ];
@@ -101,9 +110,11 @@ export default function Profile() {
     <div className="space-y-6 px-5 pt-2">
       {/* Cartão de identidade */}
       <section className="rounded-3xl border border-card-border bg-card p-6 text-center shadow-sm">
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[linear-gradient(135deg,hsl(217_91%_52%),hsl(226_80%_42%))] font-serif text-2xl font-extrabold text-white shadow-md">
-          {initials(user.name)}
-        </div>
+        <MemberAvatar
+          name={user.name}
+          avatarPath={self?.avatarPath}
+          className="mx-auto h-20 w-20 text-2xl shadow-md"
+        />
         <h1 className="mt-3 font-serif text-xl font-extrabold tracking-tight text-foreground">
           {user.name}
         </h1>
@@ -118,6 +129,13 @@ export default function Profile() {
             </span>
           ))}
         </div>
+        {self?.birthDate && (
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <Cake className="h-3.5 w-3.5" />
+            {formatBirthday(self.birthDate)}
+            {age !== null && <span>· {age} anos</span>}
+          </p>
+        )}
         {user.formationTrack && (
           <p className="mt-3 text-xs text-muted-foreground">
             Trilha de formação: <span className="font-semibold text-foreground">{user.formationTrack}</span>
@@ -143,7 +161,7 @@ export default function Profile() {
       )}
 
       <MenuGroup title="Comunidade" items={communityItems} />
-      <MenuGroup title="Célula" items={cellItems} />
+      <MenuGroup title="Life Group" items={cellItems} />
       <MenuGroup title="Conta" items={accountItems} />
     </div>
   );

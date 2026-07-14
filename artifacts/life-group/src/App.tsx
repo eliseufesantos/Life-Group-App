@@ -12,7 +12,6 @@ import Register from "@/pages/register";
 import Verify from "@/pages/verify";
 import Members from "@/pages/members";
 import MemberDetail from "@/pages/member-detail";
-import Discipleship from "@/pages/discipleship";
 import Invites from "@/pages/invites";
 import Profile from "@/pages/profile";
 import Settings from "@/pages/settings";
@@ -40,7 +39,6 @@ function Router() {
               <Route path="/calendario" component={Calendar} />
               <Route path="/membros" component={Members} />
               <Route path="/membros/:id" component={MemberDetail} />
-              <Route path="/discipulado" component={Discipleship} />
               <Route path="/convites" component={Invites} />
               <Route path="/perfil" component={Profile} />
               <Route path="/configuracoes" component={Settings} />
