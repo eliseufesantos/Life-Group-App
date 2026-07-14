@@ -182,12 +182,24 @@ router.get("/members/:id", requireAuth, async (req: AuthedRequest, res): Promise
 router.patch(
   "/members/:id",
   requireAuth,
-  requirePrivileged,
-  async (req, res): Promise<void> => {
+  async (req: AuthedRequest, res): Promise<void> => {
     const params = UpdateMemberParams.safeParse(req.params);
     if (!params.success) {
       res.status(400).json({ error: params.error.message });
       return;
+    }
+    // Self-service exception: a non-privileged user may update ONLY their own
+    // profile photo — the body must contain exactly the avatarPath field.
+    // Any other field (or someone else's id) keeps the 403 as before.
+    if (!isPrivileged(req.user)) {
+      const isSelf = req.user!.id === params.data.id;
+      const bodyKeys = Object.keys((req.body ?? {}) as Record<string, unknown>);
+      const onlyAvatarPath =
+        bodyKeys.length === 1 && bodyKeys[0] === "avatarPath";
+      if (!isSelf || !onlyAvatarPath) {
+        res.status(403).json({ error: "Acesso restrito a lideres e auxiliares" });
+        return;
+      }
     }
     const parsed = UpdateMemberBody.safeParse(req.body);
     if (!parsed.success) {

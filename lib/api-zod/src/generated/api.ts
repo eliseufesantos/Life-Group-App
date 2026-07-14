@@ -26,7 +26,9 @@ export const GetCurrentUserResponse = zod.object({
   "email": zod.string().nullish(),
   "role": zod.enum(['leader', 'auxiliary', 'member']),
   "categories": zod.array(zod.enum(['host', 'discipler', 'disciple'])),
-  "formationTrack": zod.string().nullish()
+  "formationTrack": zod.string().nullish(),
+  "birthDate": zod.string().nullable().describe('Birth date (YYYY-MM-DD)'),
+  "avatarPath": zod.string().nullable().describe('Object path of the profile picture')
 })
 
 
@@ -125,7 +127,9 @@ export const VerifyMagicLinkResponse = zod.object({
   "email": zod.string().nullish(),
   "role": zod.enum(['leader', 'auxiliary', 'member']),
   "categories": zod.array(zod.enum(['host', 'discipler', 'disciple'])),
-  "formationTrack": zod.string().nullish()
+  "formationTrack": zod.string().nullish(),
+  "birthDate": zod.string().nullable().describe('Birth date (YYYY-MM-DD)'),
+  "avatarPath": zod.string().nullable().describe('Object path of the profile picture')
 })
 
 
@@ -261,7 +265,7 @@ export const GetMemberResponse = zod.object({
 
 
 /**
- * @summary Update a member's attributes (role, categories, formation track, contact)
+ * @summary Update a member's attributes (leader/auxiliary; a member may update only their own avatarPath)
  */
 export const UpdateMemberParams = zod.object({
   "id": zod.coerce.number()

@@ -1085,7 +1085,7 @@ export const getUpdateMemberUrl = (id: number,) => {
 }
 
 /**
- * @summary Update a member's attributes (role, categories, formation track, contact)
+ * @summary Update a member's attributes (leader/auxiliary; a member may update only their own avatarPath)
  */
 export const updateMember = async (id: number,
     memberUpdate: MemberUpdate, options?: RequestInit): Promise<MemberDetail> => {
@@ -1134,7 +1134,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateMemberMutationError = ErrorType<Error>
 
     /**
- * @summary Update a member's attributes (role, categories, formation track, contact)
+ * @summary Update a member's attributes (leader/auxiliary; a member may update only their own avatarPath)
  */
 export const useUpdateMember = <TError = ErrorType<Error>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMember>>, TError,{id: number;data: BodyType<MemberUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}

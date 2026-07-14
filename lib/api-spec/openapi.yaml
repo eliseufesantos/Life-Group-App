@@ -305,7 +305,7 @@ paths:
     patch:
       operationId: updateMember
       tags: [members]
-      summary: Update a member's attributes (role, categories, formation track, contact)
+      summary: Update a member's attributes (leader/auxiliary; a member may update only their own avatarPath)
       parameters:
         - name: id
           in: path
@@ -1818,11 +1818,19 @@ components:
             enum: [host, discipler, disciple]
         formationTrack:
           type: ["string", "null"]
+        birthDate:
+          type: ["string", "null"]
+          description: Birth date (YYYY-MM-DD)
+        avatarPath:
+          type: ["string", "null"]
+          description: Object path of the profile picture
       required:
         - id
         - name
         - role
         - categories
+        - birthDate
+        - avatarPath
 
     Invite:
       type: object

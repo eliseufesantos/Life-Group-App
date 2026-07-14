@@ -1,9 +1,13 @@
 import {
   useGetCurrentUser,
   useGetMemberStats,
-  useListMembers,
   getGetMemberStatsQueryKey,
+  getGetCurrentUserQueryKey,
+  getListMembersQueryKey,
+  useUpdateMember,
+  useRequestUploadUrl,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import {
@@ -16,13 +20,16 @@ import {
   Bell,
   Settings,
   Cake,
+  Camera,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
+import { ObjectUploader } from "@workspace/object-storage-web";
 
 import { ROLE_LABELS, CATEGORY_LABELS } from "@/lib/labels";
 import { calcAge, formatBirthday } from "@/lib/people";
 import { MemberAvatar } from "@/components/people/member-avatar";
+import { useToast } from "@/hooks/use-toast";
 
 function MenuGroup({ title, items }: { title: string; items: { href: string; icon: LucideIcon; label: string; description: string }[] }) {
   if (items.length === 0) return null;
@@ -59,9 +66,41 @@ export default function Profile() {
   const { data: stats } = useGetMemberStats({
     query: { enabled: isLeaderOrAux, queryKey: getGetMemberStatsQueryKey() },
   });
-  // O endpoint /auth/me não expõe avatarPath/birthDate; buscamos o registro
-  // da própria pessoa na lista de membros (client-side).
-  const { data: members } = useListMembers();
+  const updateMember = useUpdateMember();
+  const requestUploadUrl = useRequestUploadUrl();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Upload da foto de perfil (self-service): presigned URL + PATCH no
+  // próprio id enviando apenas avatarPath — permitido para qualquer papel.
+  const handleGetUploadParams = async (file: any) => {
+    const res = await requestUploadUrl.mutateAsync({
+      data: { name: file.name, size: file.size, contentType: file.type },
+    });
+    file.meta = { ...file.meta, objectPath: res.objectPath };
+    return {
+      method: "PUT" as const,
+      url: res.uploadURL,
+      headers: { "Content-Type": file.type },
+    };
+  };
+
+  const handleAvatarUploadComplete = (result: any) => {
+    const objectPath = result?.successful?.[0]?.meta?.objectPath;
+    if (!objectPath || !user) return;
+    updateMember.mutate(
+      { id: user.id, data: { avatarPath: objectPath } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
+          toast({ title: "Foto de perfil atualizada" });
+        },
+        onError: () =>
+          toast({ variant: "destructive", title: "Erro ao atualizar a foto" }),
+      },
+    );
+  };
 
   if (isLoading) {
     return (
@@ -73,8 +112,7 @@ export default function Profile() {
   }
   if (!user) return null;
 
-  const self = members?.find((m) => m.id === user.id);
-  const age = calcAge(self?.birthDate);
+  const age = calcAge(user.birthDate);
 
   const communityItems = [
     { href: "/membros", icon: Users, label: "Pessoas", description: "Membros e convidados do Life Group" },
@@ -110,11 +148,23 @@ export default function Profile() {
     <div className="space-y-6 px-5 pt-2">
       {/* Cartão de identidade */}
       <section className="rounded-3xl border border-card-border bg-card p-6 text-center shadow-sm">
-        <MemberAvatar
-          name={user.name}
-          avatarPath={self?.avatarPath}
-          className="mx-auto h-20 w-20 text-2xl shadow-md"
-        />
+        <div className="relative mx-auto h-20 w-20">
+          <MemberAvatar
+            name={user.name}
+            avatarPath={user.avatarPath}
+            className="h-20 w-20 text-2xl shadow-md"
+          />
+          <ObjectUploader
+            onGetUploadParameters={handleGetUploadParams}
+            onComplete={handleAvatarUploadComplete}
+            maxNumberOfFiles={1}
+            maxFileSize={5 * 1024 * 1024}
+            buttonClassName="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-card text-primary shadow-md transition-colors active:bg-muted"
+          >
+            <Camera className="h-4 w-4" />
+            <span className="sr-only">Alterar foto de perfil</span>
+          </ObjectUploader>
+        </div>
         <h1 className="mt-3 font-serif text-xl font-extrabold tracking-tight text-foreground">
           {user.name}
         </h1>
@@ -129,10 +179,10 @@ export default function Profile() {
             </span>
           ))}
         </div>
-        {self?.birthDate && (
+        {user.birthDate && (
           <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
             <Cake className="h-3.5 w-3.5" />
-            {formatBirthday(self.birthDate)}
+            {formatBirthday(user.birthDate)}
             {age !== null && <span>· {age} anos</span>}
           </p>
         )}

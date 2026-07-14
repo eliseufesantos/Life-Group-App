@@ -18,6 +18,9 @@ import Settings from "@/pages/settings";
 import Calendar from "@/pages/calendar";
 import Board from "@/pages/board";
 import Campanhas from "@/pages/campanhas";
+import Registros from "@/pages/registros";
+import RegistroNovo from "@/pages/registro-novo";
+import RegistroDetail from "@/pages/registro-detail";
 import Relatorios from "@/pages/relatorios";
 import CelulaConfig from "@/pages/celula";
 import Notificacoes from "@/pages/notificacoes";
@@ -43,6 +46,9 @@ function Router() {
               <Route path="/perfil" component={Profile} />
               <Route path="/configuracoes" component={Settings} />
               <Route path="/campanhas" component={Campanhas} />
+              <Route path="/registros" component={Registros} />
+              <Route path="/registros/novo" component={RegistroNovo} />
+              <Route path="/registros/:id" component={RegistroDetail} />
               <Route path="/relatorios" component={Relatorios} />
               <Route path="/celula" component={CelulaConfig} />
               <Route path="/notificacoes" component={Notificacoes} />

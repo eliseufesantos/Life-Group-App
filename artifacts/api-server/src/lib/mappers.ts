@@ -8,6 +8,8 @@ export function toCurrentUser(u: Usuario) {
     role: (u.role ?? "member") as "leader" | "auxiliary" | "member",
     categories: (u.categories ?? []) as ("host" | "discipler" | "disciple")[],
     formationTrack: u.formationTrack,
+    birthDate: u.birthDate,
+    avatarPath: u.avatarPath,
   };
 }
 
