@@ -15,7 +15,8 @@ export default function Invites() {
   const { toast } = useToast();
 
   const handleCreate = () => {
-    createInvite(undefined, {
+    // Placeholder name until the invite UI gains a name field (future task)
+    createInvite({ data: { name: "Convidado" } }, {
       onSuccess: () => {
         toast({ title: "Convite gerado!" });
         queryClient.invalidateQueries({ queryKey: getListInvitesQueryKey() });

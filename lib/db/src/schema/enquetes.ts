@@ -15,6 +15,8 @@ export const enquetesTable = pgTable("enquetes", {
   id: serial("id").primaryKey(),
   question: text("question").notNull(),
   closed: boolean("closed").notNull().default(false),
+  endsAt: timestamp("ends_at", { withTimezone: true }),
+  anonymous: boolean("anonymous").notNull().default(false),
   createdBy: integer("created_by").references(() => usuariosTable.id, {
     onDelete: "set null",
   }),

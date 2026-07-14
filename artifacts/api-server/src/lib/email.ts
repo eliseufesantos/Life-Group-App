@@ -69,9 +69,9 @@ export async function sendMagicLinkEmail(
     "Seu link de acesso - Life Group",
     baseTemplate(
       `Ola, ${name}`,
-      "Use o botao abaixo para acessar sua celula. O link expira em 30 minutos.",
+      "Use o botao abaixo para acessar seu Life Group. O link expira em 30 minutos.",
       url,
-      "Acessar minha celula",
+      "Acessar meu Life Group",
     ),
   );
 }
@@ -83,10 +83,10 @@ export async function sendInviteEmail(
   const url = inviteUrl(code);
   return trySend(
     to,
-    "Voce foi convidado para a celula - Life Group",
+    "Voce foi convidado para o Life Group",
     baseTemplate(
       "Voce foi convidado",
-      "Voce recebeu um convite para participar de uma celula. O convite expira em 24 horas.",
+      "Voce recebeu um convite para participar de um Life Group. O convite expira em 24 horas.",
       url,
       "Aceitar convite",
     ),

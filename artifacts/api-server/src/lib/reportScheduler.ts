@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db, relatoriosTable } from "@workspace/db";
 import { generateAndStoreReport, previousMonthRange } from "./reports";
+import { ensureBirthdayAvisos } from "./automations";
 import { logger } from "./logger";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // hourly
@@ -36,6 +37,8 @@ export function startReportScheduler(): void {
     ensureMonthlyReport().catch((err) => {
       logger.error({ err }, "Monthly report generation failed");
     });
+    // ensureBirthdayAvisos catches its own errors
+    void ensureBirthdayAvisos();
   };
   run();
   setInterval(run, CHECK_INTERVAL_MS);

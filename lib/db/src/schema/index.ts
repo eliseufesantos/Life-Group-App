@@ -9,6 +9,8 @@ export * from "./avisos";
 export * from "./enquetes";
 export * from "./tarefas";
 export * from "./fotos";
+export * from "./albuns";
+export * from "./registrosEncontro";
 export * from "./campanhas";
 export * from "./itensArrecadados";
 export * from "./relatorios";

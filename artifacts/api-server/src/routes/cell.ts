@@ -13,7 +13,7 @@ const router: IRouter = Router();
 router.get("/cell", requireAuth, async (_req, res): Promise<void> => {
   const [config] = await db.select().from(configuracaoCelulaTable).limit(1);
   if (!config) {
-    res.json({ name: "Célula", photoUrl: null, updatedAt: null });
+    res.json({ name: "Life Group", photoUrl: null, updatedAt: null });
     return;
   }
   res.json({

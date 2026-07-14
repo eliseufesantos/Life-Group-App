@@ -6,8 +6,16 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * For each side provide exactly one of the internal id or the external
+ * name. At least one side must be an internal member.
+ */
 export interface DiscipleshipInput {
-  disciplerId: number;
-  discipleId: number;
+  disciplerId?: number;
+  /** @minLength 1 */
+  externalDisciplerName?: string;
+  discipleId?: number;
+  /** @minLength 1 */
+  externalDiscipleName?: string;
   notes?: string;
 }

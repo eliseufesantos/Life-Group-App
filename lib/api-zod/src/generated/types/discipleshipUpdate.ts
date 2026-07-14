@@ -7,7 +7,20 @@
  */
 import type { DiscipleshipUpdateStatus } from './discipleshipUpdateStatus';
 
+/**
+ * Sides may be reassigned; when changing a side, provide exactly one of
+ * the internal id or the external name for it. At least one side must
+ * remain an internal member.
+ */
 export interface DiscipleshipUpdate {
+  /** @nullable */
+  disciplerId?: number | null;
+  /** @nullable */
+  externalDisciplerName?: string | null;
+  /** @nullable */
+  discipleId?: number | null;
+  /** @nullable */
+  externalDiscipleName?: string | null;
   status?: DiscipleshipUpdateStatus;
   notes?: string;
 }

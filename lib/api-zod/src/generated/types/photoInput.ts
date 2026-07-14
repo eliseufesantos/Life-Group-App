@@ -5,9 +5,17 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PhotoInputSourceType } from './photoInputSourceType';
 
+/**
+ * sourceType 'upload' (default) requires objectPath; sourceType 'drive'
+ * requires externalUrl (https).
+ */
 export interface PhotoInput {
   /** @minLength 1 */
-  objectPath: string;
+  objectPath?: string;
+  sourceType?: PhotoInputSourceType;
+  externalUrl?: string;
+  albumId?: number;
   caption?: string;
 }

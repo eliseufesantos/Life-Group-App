@@ -11,6 +11,12 @@ export interface Poll {
   id: number;
   question: string;
   closed: boolean;
+  /**
+     * Expiration date-time. Expired polls are hard-deleted on listing.
+     * @nullable
+     */
+  endsAt: string | null;
+  anonymous: boolean;
   options: PollOption[];
   /**
      * Option id the current user voted for

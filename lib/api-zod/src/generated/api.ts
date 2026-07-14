@@ -36,6 +36,7 @@ export const GetCurrentUserResponse = zod.object({
 export const ListInvitesResponseItem = zod.object({
   "id": zod.number(),
   "code": zod.string(),
+  "name": zod.string().describe('Name of the invited person'),
   "createdAt": zod.string(),
   "expiresAt": zod.string(),
   "used": zod.boolean()
@@ -44,11 +45,19 @@ export const ListInvitesResponse = zod.array(ListInvitesResponseItem)
 
 
 /**
- * @summary Generate a new single-use invite code (valid 24h)
+ * @summary Generate a new single-use invite code (valid 24h) for a named person
  */
+
+
+
+export const CreateInviteBody = zod.object({
+  "name": zod.string().min(1).describe('Name of the invited person')
+})
+
 export const CreateInviteResponse = zod.object({
   "id": zod.number(),
   "code": zod.string(),
+  "name": zod.string().describe('Name of the invited person'),
   "createdAt": zod.string(),
   "expiresAt": zod.string(),
   "used": zod.boolean()
@@ -144,6 +153,8 @@ export const ListMembersResponseItem = zod.object({
   "role": zod.union([zod.literal('leader'),zod.literal('auxiliary'),zod.literal('member'),zod.literal(null)]).nullish(),
   "categories": zod.array(zod.enum(['host', 'discipler', 'disciple'])),
   "formationTrack": zod.string().nullish(),
+  "birthDate": zod.string().nullable().describe('Birth date (YYYY-MM-DD)'),
+  "avatarPath": zod.string().nullable().describe('Object path of the profile picture'),
   "invitedBy": zod.string().nullish(),
   "joinedAt": zod.string().nullish(),
   "active": zod.boolean()
@@ -172,6 +183,8 @@ export const CreateGuestResponse = zod.object({
   "role": zod.union([zod.literal('leader'),zod.literal('auxiliary'),zod.literal('member'),zod.literal(null)]).nullish(),
   "categories": zod.array(zod.enum(['host', 'discipler', 'disciple'])),
   "formationTrack": zod.string().nullish(),
+  "birthDate": zod.string().nullable().describe('Birth date (YYYY-MM-DD)'),
+  "avatarPath": zod.string().nullable().describe('Object path of the profile picture'),
   "invitedBy": zod.string().nullish(),
   "joinedAt": zod.string().nullish(),
   "active": zod.boolean()
@@ -215,29 +228,35 @@ export const GetMemberResponse = zod.object({
   "role": zod.union([zod.literal('leader'),zod.literal('auxiliary'),zod.literal('member'),zod.literal(null)]).nullish(),
   "categories": zod.array(zod.enum(['host', 'discipler', 'disciple'])),
   "formationTrack": zod.string().nullish(),
+  "birthDate": zod.string().nullable().describe('Birth date (YYYY-MM-DD)'),
+  "avatarPath": zod.string().nullable().describe('Object path of the profile picture'),
   "invitedBy": zod.string().nullish(),
   "joinedAt": zod.string().nullish(),
   "active": zod.boolean(),
   "disciples": zod.array(zod.object({
   "id": zod.number(),
-  "disciplerId": zod.number(),
+  "disciplerId": zod.number().nullable(),
   "disciplerName": zod.string(),
-  "discipleId": zod.number(),
+  "externalDisciplerName": zod.string().nullable().describe('Free-text name when the discipler is from another Life Group'),
+  "discipleId": zod.number().nullable(),
   "discipleName": zod.string(),
+  "externalDiscipleName": zod.string().nullable().describe('Free-text name when the disciple is from another Life Group'),
   "startDate": zod.string(),
   "status": zod.enum(['active', 'paused', 'completed']),
   "notes": zod.string().nullish()
-})),
+}).describe('Each side is either an internal member (id set) or an external person\nfrom another Life Group (external name set). At least one side is\ninternal. disciplerName\/discipleName always carry the display name.\n')),
   "disciplers": zod.array(zod.object({
   "id": zod.number(),
-  "disciplerId": zod.number(),
+  "disciplerId": zod.number().nullable(),
   "disciplerName": zod.string(),
-  "discipleId": zod.number(),
+  "externalDisciplerName": zod.string().nullable().describe('Free-text name when the discipler is from another Life Group'),
+  "discipleId": zod.number().nullable(),
   "discipleName": zod.string(),
+  "externalDiscipleName": zod.string().nullable().describe('Free-text name when the disciple is from another Life Group'),
   "startDate": zod.string(),
   "status": zod.enum(['active', 'paused', 'completed']),
   "notes": zod.string().nullish()
-}))
+}).describe('Each side is either an internal member (id set) or an external person\nfrom another Life Group (external name set). At least one side is\ninternal. disciplerName\/discipleName always carry the display name.\n'))
 })
 
 
@@ -258,6 +277,8 @@ export const UpdateMemberBody = zod.object({
   "role": zod.enum(['leader', 'auxiliary', 'member']).optional(),
   "categories": zod.array(zod.enum(['host', 'discipler', 'disciple'])).optional(),
   "formationTrack": zod.string().optional(),
+  "birthDate": zod.string().nullish().describe('Birth date (YYYY-MM-DD), null clears it'),
+  "avatarPath": zod.string().nullish().describe('Object path of the profile picture, null clears it'),
   "active": zod.boolean().optional()
 })
 
@@ -270,29 +291,35 @@ export const UpdateMemberResponse = zod.object({
   "role": zod.union([zod.literal('leader'),zod.literal('auxiliary'),zod.literal('member'),zod.literal(null)]).nullish(),
   "categories": zod.array(zod.enum(['host', 'discipler', 'disciple'])),
   "formationTrack": zod.string().nullish(),
+  "birthDate": zod.string().nullable().describe('Birth date (YYYY-MM-DD)'),
+  "avatarPath": zod.string().nullable().describe('Object path of the profile picture'),
   "invitedBy": zod.string().nullish(),
   "joinedAt": zod.string().nullish(),
   "active": zod.boolean(),
   "disciples": zod.array(zod.object({
   "id": zod.number(),
-  "disciplerId": zod.number(),
+  "disciplerId": zod.number().nullable(),
   "disciplerName": zod.string(),
-  "discipleId": zod.number(),
+  "externalDisciplerName": zod.string().nullable().describe('Free-text name when the discipler is from another Life Group'),
+  "discipleId": zod.number().nullable(),
   "discipleName": zod.string(),
+  "externalDiscipleName": zod.string().nullable().describe('Free-text name when the disciple is from another Life Group'),
   "startDate": zod.string(),
   "status": zod.enum(['active', 'paused', 'completed']),
   "notes": zod.string().nullish()
-})),
+}).describe('Each side is either an internal member (id set) or an external person\nfrom another Life Group (external name set). At least one side is\ninternal. disciplerName\/discipleName always carry the display name.\n')),
   "disciplers": zod.array(zod.object({
   "id": zod.number(),
-  "disciplerId": zod.number(),
+  "disciplerId": zod.number().nullable(),
   "disciplerName": zod.string(),
-  "discipleId": zod.number(),
+  "externalDisciplerName": zod.string().nullable().describe('Free-text name when the discipler is from another Life Group'),
+  "discipleId": zod.number().nullable(),
   "discipleName": zod.string(),
+  "externalDiscipleName": zod.string().nullable().describe('Free-text name when the disciple is from another Life Group'),
   "startDate": zod.string(),
   "status": zod.enum(['active', 'paused', 'completed']),
   "notes": zod.string().nullish()
-}))
+}).describe('Each side is either an internal member (id set) or an external person\nfrom another Life Group (external name set). At least one side is\ninternal. disciplerName\/discipleName always carry the display name.\n'))
 })
 
 
@@ -328,29 +355,35 @@ export const PromoteGuestResponse = zod.object({
   "role": zod.union([zod.literal('leader'),zod.literal('auxiliary'),zod.literal('member'),zod.literal(null)]).nullish(),
   "categories": zod.array(zod.enum(['host', 'discipler', 'disciple'])),
   "formationTrack": zod.string().nullish(),
+  "birthDate": zod.string().nullable().describe('Birth date (YYYY-MM-DD)'),
+  "avatarPath": zod.string().nullable().describe('Object path of the profile picture'),
   "invitedBy": zod.string().nullish(),
   "joinedAt": zod.string().nullish(),
   "active": zod.boolean(),
   "disciples": zod.array(zod.object({
   "id": zod.number(),
-  "disciplerId": zod.number(),
+  "disciplerId": zod.number().nullable(),
   "disciplerName": zod.string(),
-  "discipleId": zod.number(),
+  "externalDisciplerName": zod.string().nullable().describe('Free-text name when the discipler is from another Life Group'),
+  "discipleId": zod.number().nullable(),
   "discipleName": zod.string(),
+  "externalDiscipleName": zod.string().nullable().describe('Free-text name when the disciple is from another Life Group'),
   "startDate": zod.string(),
   "status": zod.enum(['active', 'paused', 'completed']),
   "notes": zod.string().nullish()
-})),
+}).describe('Each side is either an internal member (id set) or an external person\nfrom another Life Group (external name set). At least one side is\ninternal. disciplerName\/discipleName always carry the display name.\n')),
   "disciplers": zod.array(zod.object({
   "id": zod.number(),
-  "disciplerId": zod.number(),
+  "disciplerId": zod.number().nullable(),
   "disciplerName": zod.string(),
-  "discipleId": zod.number(),
+  "externalDisciplerName": zod.string().nullable().describe('Free-text name when the discipler is from another Life Group'),
+  "discipleId": zod.number().nullable(),
   "discipleName": zod.string(),
+  "externalDiscipleName": zod.string().nullable().describe('Free-text name when the disciple is from another Life Group'),
   "startDate": zod.string(),
   "status": zod.enum(['active', 'paused', 'completed']),
   "notes": zod.string().nullish()
-}))
+}).describe('Each side is either an internal member (id set) or an external person\nfrom another Life Group (external name set). At least one side is\ninternal. disciplerName\/discipleName always carry the display name.\n'))
 })
 
 
@@ -371,36 +404,46 @@ export const GetMemberStatsResponse = zod.object({
  */
 export const ListDiscipleshipsResponseItem = zod.object({
   "id": zod.number(),
-  "disciplerId": zod.number(),
+  "disciplerId": zod.number().nullable(),
   "disciplerName": zod.string(),
-  "discipleId": zod.number(),
+  "externalDisciplerName": zod.string().nullable().describe('Free-text name when the discipler is from another Life Group'),
+  "discipleId": zod.number().nullable(),
   "discipleName": zod.string(),
+  "externalDiscipleName": zod.string().nullable().describe('Free-text name when the disciple is from another Life Group'),
   "startDate": zod.string(),
   "status": zod.enum(['active', 'paused', 'completed']),
   "notes": zod.string().nullish()
-})
+}).describe('Each side is either an internal member (id set) or an external person\nfrom another Life Group (external name set). At least one side is\ninternal. disciplerName\/discipleName always carry the display name.\n')
 export const ListDiscipleshipsResponse = zod.array(ListDiscipleshipsResponseItem)
 
 
 /**
  * @summary Create a discipler to disciple relationship
  */
+
+
+
+
 export const CreateDiscipleshipBody = zod.object({
-  "disciplerId": zod.number(),
-  "discipleId": zod.number(),
+  "disciplerId": zod.number().optional(),
+  "externalDisciplerName": zod.string().min(1).optional(),
+  "discipleId": zod.number().optional(),
+  "externalDiscipleName": zod.string().min(1).optional(),
   "notes": zod.string().optional()
-})
+}).describe('For each side provide exactly one of the internal id or the external\nname. At least one side must be an internal member.\n')
 
 export const CreateDiscipleshipResponse = zod.object({
   "id": zod.number(),
-  "disciplerId": zod.number(),
+  "disciplerId": zod.number().nullable(),
   "disciplerName": zod.string(),
-  "discipleId": zod.number(),
+  "externalDisciplerName": zod.string().nullable().describe('Free-text name when the discipler is from another Life Group'),
+  "discipleId": zod.number().nullable(),
   "discipleName": zod.string(),
+  "externalDiscipleName": zod.string().nullable().describe('Free-text name when the disciple is from another Life Group'),
   "startDate": zod.string(),
   "status": zod.enum(['active', 'paused', 'completed']),
   "notes": zod.string().nullish()
-})
+}).describe('Each side is either an internal member (id set) or an external person\nfrom another Life Group (external name set). At least one side is\ninternal. disciplerName\/discipleName always carry the display name.\n')
 
 
 /**
@@ -411,20 +454,26 @@ export const UpdateDiscipleshipParams = zod.object({
 })
 
 export const UpdateDiscipleshipBody = zod.object({
+  "disciplerId": zod.number().nullish(),
+  "externalDisciplerName": zod.string().nullish(),
+  "discipleId": zod.number().nullish(),
+  "externalDiscipleName": zod.string().nullish(),
   "status": zod.enum(['active', 'paused', 'completed']).optional(),
   "notes": zod.string().optional()
-})
+}).describe('Sides may be reassigned; when changing a side, provide exactly one of\nthe internal id or the external name for it. At least one side must\nremain an internal member.\n')
 
 export const UpdateDiscipleshipResponse = zod.object({
   "id": zod.number(),
-  "disciplerId": zod.number(),
+  "disciplerId": zod.number().nullable(),
   "disciplerName": zod.string(),
-  "discipleId": zod.number(),
+  "externalDisciplerName": zod.string().nullable().describe('Free-text name when the discipler is from another Life Group'),
+  "discipleId": zod.number().nullable(),
   "discipleName": zod.string(),
+  "externalDiscipleName": zod.string().nullable().describe('Free-text name when the disciple is from another Life Group'),
   "startDate": zod.string(),
   "status": zod.enum(['active', 'paused', 'completed']),
   "notes": zod.string().nullish()
-})
+}).describe('Each side is either an internal member (id set) or an external person\nfrom another Life Group (external name set). At least one side is\ninternal. disciplerName\/discipleName always carry the display name.\n')
 
 
 /**
@@ -659,8 +708,10 @@ export const ListAnnouncementsResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
   "body": zod.string(),
+  "origin": zod.enum(['manual', 'birthday', 'campaign', 'registro_pending']).describe('Whether the aviso was posted manually or by an automation'),
   "authorName": zod.string().nullable(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
 })
 export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem)
 
@@ -681,8 +732,37 @@ export const CreateAnnouncementResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
   "body": zod.string(),
+  "origin": zod.enum(['manual', 'birthday', 'campaign', 'registro_pending']).describe('Whether the aviso was posted manually or by an automation'),
   "authorName": zod.string().nullable(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Edit an announcement's title/body (leader/auxiliary)
+ */
+export const UpdateAnnouncementParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+
+export const UpdateAnnouncementBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "body": zod.string().min(1).optional()
+})
+
+export const UpdateAnnouncementResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "origin": zod.enum(['manual', 'birthday', 'campaign', 'registro_pending']).describe('Whether the aviso was posted manually or by an automation'),
+  "authorName": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
 })
 
 
@@ -705,10 +785,17 @@ export const ListPollsResponseItem = zod.object({
   "id": zod.number(),
   "question": zod.string(),
   "closed": zod.boolean(),
+  "endsAt": zod.string().nullable().describe('Expiration date-time. Expired polls are hard-deleted on listing.'),
+  "anonymous": zod.boolean(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "text": zod.string(),
-  "votes": zod.number()
+  "votes": zod.number(),
+  "voters": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "avatarPath": zod.string().nullable()
+})).describe('Who voted for this option. Always empty when the poll is anonymous.')
 })),
   "myVote": zod.number().nullable().describe('Option id the current user voted for'),
   "totalVotes": zod.number(),
@@ -729,17 +816,26 @@ export const createPollBodyOptionsMin = 2;
 
 export const CreatePollBody = zod.object({
   "question": zod.string().min(1),
-  "options": zod.array(zod.string().min(1)).min(createPollBodyOptionsMin)
+  "options": zod.array(zod.string().min(1)).min(createPollBodyOptionsMin),
+  "endsAt": zod.coerce.date().optional().describe('Optional expiration. After this instant the poll is deleted for good.'),
+  "anonymous": zod.boolean().optional()
 })
 
 export const CreatePollResponse = zod.object({
   "id": zod.number(),
   "question": zod.string(),
   "closed": zod.boolean(),
+  "endsAt": zod.string().nullable().describe('Expiration date-time. Expired polls are hard-deleted on listing.'),
+  "anonymous": zod.boolean(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "text": zod.string(),
-  "votes": zod.number()
+  "votes": zod.number(),
+  "voters": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "avatarPath": zod.string().nullable()
+})).describe('Who voted for this option. Always empty when the poll is anonymous.')
 })),
   "myVote": zod.number().nullable().describe('Option id the current user voted for'),
   "totalVotes": zod.number(),
@@ -763,10 +859,17 @@ export const VotePollResponse = zod.object({
   "id": zod.number(),
   "question": zod.string(),
   "closed": zod.boolean(),
+  "endsAt": zod.string().nullable().describe('Expiration date-time. Expired polls are hard-deleted on listing.'),
+  "anonymous": zod.boolean(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "text": zod.string(),
-  "votes": zod.number()
+  "votes": zod.number(),
+  "voters": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "avatarPath": zod.string().nullable()
+})).describe('Who voted for this option. Always empty when the poll is anonymous.')
 })),
   "myVote": zod.number().nullable().describe('Option id the current user voted for'),
   "totalVotes": zod.number(),
@@ -786,10 +889,17 @@ export const ClosePollResponse = zod.object({
   "id": zod.number(),
   "question": zod.string(),
   "closed": zod.boolean(),
+  "endsAt": zod.string().nullable().describe('Expiration date-time. Expired polls are hard-deleted on listing.'),
+  "anonymous": zod.boolean(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "text": zod.string(),
-  "votes": zod.number()
+  "votes": zod.number(),
+  "voters": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "avatarPath": zod.string().nullable()
+})).describe('Who voted for this option. Always empty when the poll is anonymous.')
 })),
   "myVote": zod.number().nullable().describe('Option id the current user voted for'),
   "totalVotes": zod.number(),
@@ -847,7 +957,7 @@ export const createTaskBodyWeekStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9
 export const CreateTaskBody = zod.object({
   "title": zod.string().min(1),
   "weekStart": zod.string().regex(createTaskBodyWeekStartRegExp),
-  "assignedTo": zod.number().optional()
+  "assignedTo": zod.number().describe('Tasks always belong to a specific person')
 })
 
 export const createTaskResponseWeekStartRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
@@ -929,8 +1039,11 @@ export const DeleteTaskResponse = zod.object({
  */
 export const ListPhotosResponseItem = zod.object({
   "id": zod.number(),
-  "objectPath": zod.string(),
-  "url": zod.string().describe('Relative serving URL for the photo'),
+  "objectPath": zod.string().nullable().describe('Storage path for uploaded photos, null for Drive photos'),
+  "url": zod.string().describe('Serving URL (relative for uploads, absolute for Drive photos)'),
+  "sourceType": zod.enum(['upload', 'drive']),
+  "externalUrl": zod.string().nullable().describe('Google Drive URL for drive photos'),
+  "albumId": zod.number().nullable(),
   "caption": zod.string().nullable(),
   "uploaderName": zod.string().nullable(),
   "uploadedBy": zod.number().nullable(),
@@ -943,17 +1056,23 @@ export const ListPhotosResponse = zod.array(ListPhotosResponseItem)
  * @summary Register an uploaded meeting photo (any member)
  */
 
-
+export const createPhotoBodySourceTypeDefault = `upload`;
 
 export const CreatePhotoBody = zod.object({
-  "objectPath": zod.string().min(1),
+  "objectPath": zod.string().min(1).optional(),
+  "sourceType": zod.enum(['upload', 'drive']).default(createPhotoBodySourceTypeDefault),
+  "externalUrl": zod.string().url().optional(),
+  "albumId": zod.number().optional(),
   "caption": zod.string().optional()
-})
+}).describe('sourceType \'upload\' (default) requires objectPath; sourceType \'drive\'\nrequires externalUrl (https).\n')
 
 export const CreatePhotoResponse = zod.object({
   "id": zod.number(),
-  "objectPath": zod.string(),
-  "url": zod.string().describe('Relative serving URL for the photo'),
+  "objectPath": zod.string().nullable().describe('Storage path for uploaded photos, null for Drive photos'),
+  "url": zod.string().describe('Serving URL (relative for uploads, absolute for Drive photos)'),
+  "sourceType": zod.enum(['upload', 'drive']),
+  "externalUrl": zod.string().nullable().describe('Google Drive URL for drive photos'),
+  "albumId": zod.number().nullable(),
   "caption": zod.string().nullable(),
   "uploaderName": zod.string().nullable(),
   "uploadedBy": zod.number().nullable(),
@@ -970,6 +1089,399 @@ export const DeletePhotoParams = zod.object({
 
 export const DeletePhotoResponse = zod.object({
   "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List photo albums with linked event and photo count (newest first)
+ */
+export const ListAlbumsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "eventId": zod.number().nullable().describe('Linked calendar event, if any'),
+  "eventTitle": zod.string().nullable(),
+  "driveUrl": zod.string().nullable().describe('Link to a shared Google Drive folder'),
+  "photoCount": zod.number(),
+  "createdBy": zod.number().nullable(),
+  "createdByName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+export const ListAlbumsResponse = zod.array(ListAlbumsResponseItem)
+
+
+/**
+ * @summary Create a photo album (any member)
+ */
+
+
+
+export const CreateAlbumBody = zod.object({
+  "title": zod.string().min(1),
+  "eventId": zod.number().optional(),
+  "driveUrl": zod.string().url().optional()
+})
+
+export const CreateAlbumResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "eventId": zod.number().nullable().describe('Linked calendar event, if any'),
+  "eventTitle": zod.string().nullable(),
+  "driveUrl": zod.string().nullable().describe('Link to a shared Google Drive folder'),
+  "photoCount": zod.number(),
+  "createdBy": zod.number().nullable(),
+  "createdByName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update an album (creator or leader/auxiliary)
+ */
+export const UpdateAlbumParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateAlbumBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "eventId": zod.number().nullish(),
+  "driveUrl": zod.string().nullish()
+})
+
+export const UpdateAlbumResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "eventId": zod.number().nullable().describe('Linked calendar event, if any'),
+  "eventTitle": zod.string().nullable(),
+  "driveUrl": zod.string().nullable().describe('Link to a shared Google Drive folder'),
+  "photoCount": zod.number(),
+  "createdBy": zod.number().nullable(),
+  "createdByName": zod.string().nullable(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete an album, keeping its photos unlinked (creator or leader/auxiliary)
+ */
+export const DeleteAlbumParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAlbumResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List meeting records (leader/auxiliary)
+ */
+export const listRegistrosResponseEventDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListRegistrosResponseItem = zod.object({
+  "id": zod.number(),
+  "seq": zod.number().describe('Sequential meeting number'),
+  "eventDate": zod.string().regex(listRegistrosResponseEventDateRegExp),
+  "status": zod.enum(['pending', 'published']),
+  "presentCount": zod.number(),
+  "createdByName": zod.string().nullable()
+})
+export const ListRegistrosResponse = zod.array(ListRegistrosResponseItem)
+
+
+/**
+ * @summary Create a meeting record (leader publishes directly; auxiliary creates pending)
+ */
+export const createRegistroBodyEventDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+
+
+
+
+
+export const CreateRegistroBody = zod.object({
+  "eventDate": zod.string().regex(createRegistroBodyEventDateRegExp),
+  "presentes": zod.array(zod.number()).describe('Ids of members\/guests present'),
+  "novosConvidados": zod.array(zod.object({
+  "name": zod.string().min(1),
+  "phone": zod.string().optional()
+})).optional().describe('New guests to create (status guest, no tags) and mark present'),
+  "atividades": zod.array(zod.object({
+  "atividadeId": zod.number().optional().describe('Catalog activity id, when picked from the catalog'),
+  "name": zod.string().min(1).describe('Activity name snapshot'),
+  "responsavelId": zod.number().optional(),
+  "durationMin": zod.number().min(1).optional()
+})).optional(),
+  "albumId": zod.number().optional(),
+  "arrecadacao": zod.array(zod.object({
+  "item": zod.string().min(1),
+  "quantity": zod.number().min(1)
+})).optional().describe('Donated items, linked to the currently active campaign'),
+  "notes": zod.string().optional()
+})
+
+export const createRegistroResponseEventDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateRegistroResponse = zod.object({
+  "id": zod.number(),
+  "seq": zod.number(),
+  "eventDate": zod.string().regex(createRegistroResponseEventDateRegExp),
+  "status": zod.enum(['pending', 'published']),
+  "notes": zod.string().nullable(),
+  "createdByName": zod.string().nullable(),
+  "approvedByName": zod.string().nullable(),
+  "presentes": zod.array(zod.object({
+  "userId": zod.number(),
+  "name": zod.string(),
+  "status": zod.enum(['member', 'guest'])
+})),
+  "atividades": zod.array(zod.object({
+  "id": zod.number(),
+  "atividadeId": zod.number().nullable().describe('Catalog activity id, null when the catalog entry was removed'),
+  "name": zod.string().describe('Snapshot of the activity name'),
+  "responsavelId": zod.number().nullable(),
+  "responsavelName": zod.string().nullable(),
+  "durationMin": zod.number().nullable()
+})),
+  "arrecadacao": zod.array(zod.object({
+  "id": zod.number(),
+  "itemName": zod.string(),
+  "quantity": zod.number()
+})),
+  "album": zod.union([zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "driveUrl": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary List the activity catalog (seeds the builtin activities on first use)
+ */
+export const ListRegistroActivitiesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "hasDuration": zod.boolean(),
+  "builtin": zod.boolean()
+})
+export const ListRegistroActivitiesResponse = zod.array(ListRegistroActivitiesResponseItem)
+
+
+/**
+ * @summary Create a custom catalog activity (leader/auxiliary)
+ */
+
+export const createRegistroActivityBodyHasDurationDefault = true;
+
+export const CreateRegistroActivityBody = zod.object({
+  "name": zod.string().min(1),
+  "hasDuration": zod.boolean().default(createRegistroActivityBodyHasDurationDefault)
+})
+
+export const CreateRegistroActivityResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "hasDuration": zod.boolean(),
+  "builtin": zod.boolean()
+})
+
+
+/**
+ * @summary Remove a custom catalog activity (builtin activities cannot be removed)
+ */
+export const DeleteRegistroActivityParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteRegistroActivityResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Get a meeting record with attendance, activities, donations and album
+ */
+export const GetRegistroParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const getRegistroResponseEventDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const GetRegistroResponse = zod.object({
+  "id": zod.number(),
+  "seq": zod.number(),
+  "eventDate": zod.string().regex(getRegistroResponseEventDateRegExp),
+  "status": zod.enum(['pending', 'published']),
+  "notes": zod.string().nullable(),
+  "createdByName": zod.string().nullable(),
+  "approvedByName": zod.string().nullable(),
+  "presentes": zod.array(zod.object({
+  "userId": zod.number(),
+  "name": zod.string(),
+  "status": zod.enum(['member', 'guest'])
+})),
+  "atividades": zod.array(zod.object({
+  "id": zod.number(),
+  "atividadeId": zod.number().nullable().describe('Catalog activity id, null when the catalog entry was removed'),
+  "name": zod.string().describe('Snapshot of the activity name'),
+  "responsavelId": zod.number().nullable(),
+  "responsavelName": zod.string().nullable(),
+  "durationMin": zod.number().nullable()
+})),
+  "arrecadacao": zod.array(zod.object({
+  "id": zod.number(),
+  "itemName": zod.string(),
+  "quantity": zod.number()
+})),
+  "album": zod.union([zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "driveUrl": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update a meeting record (auxiliary edits send published records back to pending)
+ */
+export const UpdateRegistroParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateRegistroBodyEventDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+
+
+
+
+
+export const UpdateRegistroBody = zod.object({
+  "eventDate": zod.string().regex(updateRegistroBodyEventDateRegExp).optional(),
+  "presentes": zod.array(zod.number()).optional().describe('Replaces the attendance list when provided'),
+  "novosConvidados": zod.array(zod.object({
+  "name": zod.string().min(1),
+  "phone": zod.string().optional()
+})).optional(),
+  "atividades": zod.array(zod.object({
+  "atividadeId": zod.number().optional().describe('Catalog activity id, when picked from the catalog'),
+  "name": zod.string().min(1).describe('Activity name snapshot'),
+  "responsavelId": zod.number().optional(),
+  "durationMin": zod.number().min(1).optional()
+})).optional().describe('Replaces the activity list when provided'),
+  "albumId": zod.number().nullish(),
+  "arrecadacao": zod.array(zod.object({
+  "item": zod.string().min(1),
+  "quantity": zod.number().min(1)
+})).optional().describe('Replaces the donation entries of this record when provided'),
+  "notes": zod.string().nullish()
+})
+
+export const updateRegistroResponseEventDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const UpdateRegistroResponse = zod.object({
+  "id": zod.number(),
+  "seq": zod.number(),
+  "eventDate": zod.string().regex(updateRegistroResponseEventDateRegExp),
+  "status": zod.enum(['pending', 'published']),
+  "notes": zod.string().nullable(),
+  "createdByName": zod.string().nullable(),
+  "approvedByName": zod.string().nullable(),
+  "presentes": zod.array(zod.object({
+  "userId": zod.number(),
+  "name": zod.string(),
+  "status": zod.enum(['member', 'guest'])
+})),
+  "atividades": zod.array(zod.object({
+  "id": zod.number(),
+  "atividadeId": zod.number().nullable().describe('Catalog activity id, null when the catalog entry was removed'),
+  "name": zod.string().describe('Snapshot of the activity name'),
+  "responsavelId": zod.number().nullable(),
+  "responsavelName": zod.string().nullable(),
+  "durationMin": zod.number().nullable()
+})),
+  "arrecadacao": zod.array(zod.object({
+  "id": zod.number(),
+  "itemName": zod.string(),
+  "quantity": zod.number()
+})),
+  "album": zod.union([zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "driveUrl": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a meeting record (leader only)
+ */
+export const DeleteRegistroParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteRegistroResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Approve a pending meeting record (leader only)
+ */
+export const ApproveRegistroParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const approveRegistroResponseEventDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ApproveRegistroResponse = zod.object({
+  "id": zod.number(),
+  "seq": zod.number(),
+  "eventDate": zod.string().regex(approveRegistroResponseEventDateRegExp),
+  "status": zod.enum(['pending', 'published']),
+  "notes": zod.string().nullable(),
+  "createdByName": zod.string().nullable(),
+  "approvedByName": zod.string().nullable(),
+  "presentes": zod.array(zod.object({
+  "userId": zod.number(),
+  "name": zod.string(),
+  "status": zod.enum(['member', 'guest'])
+})),
+  "atividades": zod.array(zod.object({
+  "id": zod.number(),
+  "atividadeId": zod.number().nullable().describe('Catalog activity id, null when the catalog entry was removed'),
+  "name": zod.string().describe('Snapshot of the activity name'),
+  "responsavelId": zod.number().nullable(),
+  "responsavelName": zod.string().nullable(),
+  "durationMin": zod.number().nullable()
+})),
+  "arrecadacao": zod.array(zod.object({
+  "id": zod.number(),
+  "itemName": zod.string(),
+  "quantity": zod.number()
+})),
+  "album": zod.union([zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "driveUrl": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
 })
 
 
@@ -1089,7 +1601,8 @@ export const UpdateCampaignBody = zod.object({
   "type": zod.enum(['money', 'items', 'both']).optional(),
   "startDate": zod.string().regex(updateCampaignBodyStartDateRegExp).optional(),
   "endDate": zod.string().nullish(),
-  "externalLink": zod.string().nullish()
+  "externalLink": zod.string().nullish(),
+  "status": zod.enum(['active', 'closed']).optional().describe('Setting active reopens a closed campaign')
 })
 
 export const updateCampaignResponseStartDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');

@@ -33,7 +33,11 @@ async function loadDiscipleships(memberId: number) {
 
   const all = [...rels, ...relsAsDisciple];
   const ids = Array.from(
-    new Set(all.flatMap((r) => [r.disciplerId, r.discipleId])),
+    new Set(
+      all
+        .flatMap((r) => [r.disciplerId, r.discipleId])
+        .filter((id): id is number => id !== null),
+    ),
   );
   const names = new Map<number, string>();
   if (ids.length > 0) {
@@ -45,8 +49,7 @@ async function loadDiscipleships(memberId: number) {
   }
   const map = (r: (typeof all)[number]): DiscipleshipRow => ({
     rel: r,
-    disciplerName: names.get(r.disciplerId) ?? "",
-    discipleName: names.get(r.discipleId) ?? "",
+    names,
   });
   return {
     disciples: rels.map(map).map(toDiscipleship),
@@ -192,6 +195,29 @@ router.patch(
       return;
     }
     const data = parsed.data;
+
+    const [target] = await db
+      .select()
+      .from(usuariosTable)
+      .where(eq(usuariosTable.id, params.data.id));
+    if (!target) {
+      res.status(404).json({ error: "Membro nao encontrado" });
+      return;
+    }
+    // Guests never receive a role, categories or formation track
+    if (
+      target.status === "guest" &&
+      (data.role !== undefined ||
+        (data.categories !== undefined && data.categories.length > 0) ||
+        (data.formationTrack !== undefined && data.formationTrack !== ""))
+    ) {
+      res.status(400).json({
+        error:
+          "Convidado não pode receber função, categoria ou trilha de formação",
+      });
+      return;
+    }
+
     const update: Record<string, unknown> = {};
     if (data.name !== undefined) update.name = data.name;
     if (data.email !== undefined)
@@ -201,6 +227,9 @@ router.patch(
     if (data.categories !== undefined) update.categories = data.categories;
     if (data.formationTrack !== undefined)
       update.formationTrack = data.formationTrack || null;
+    if (data.birthDate !== undefined) update.birthDate = data.birthDate || null;
+    if (data.avatarPath !== undefined)
+      update.avatarPath = data.avatarPath || null;
     if (data.active !== undefined) update.active = data.active;
 
     const [member] = await db

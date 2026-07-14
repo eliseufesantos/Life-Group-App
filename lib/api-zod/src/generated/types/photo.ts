@@ -5,12 +5,25 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PhotoSourceType } from './photoSourceType';
 
 export interface Photo {
   id: number;
-  objectPath: string;
-  /** Relative serving URL for the photo */
+  /**
+     * Storage path for uploaded photos, null for Drive photos
+     * @nullable
+     */
+  objectPath: string | null;
+  /** Serving URL (relative for uploads, absolute for Drive photos) */
   url: string;
+  sourceType: PhotoSourceType;
+  /**
+     * Google Drive URL for drive photos
+     * @nullable
+     */
+  externalUrl: string | null;
+  /** @nullable */
+  albumId: number | null;
   /** @nullable */
   caption: string | null;
   /** @nullable */

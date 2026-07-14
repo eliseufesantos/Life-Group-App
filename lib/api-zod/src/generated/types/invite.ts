@@ -9,6 +9,8 @@
 export interface Invite {
   id: number;
   code: string;
+  /** Name of the invited person */
+  name: string;
   createdAt: string;
   expiresAt: string;
   used: boolean;

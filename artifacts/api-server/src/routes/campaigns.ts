@@ -23,6 +23,7 @@ import {
   requirePrivileged,
   type AuthedRequest,
 } from "../lib/auth";
+import { announceCampaignActivated } from "../lib/automations";
 
 const router: IRouter = Router();
 
@@ -134,6 +135,9 @@ router.post(
         createdBy: req.user!.id,
       })
       .returning();
+    if (campaign.status === "active") {
+      void announceCampaignActivated(campaign, req.user!.id);
+    }
     res.status(201).json(await campaignDto(campaign, 0));
   },
 );
@@ -153,6 +157,15 @@ router.patch(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+    const [before] = await db
+      .select()
+      .from(campanhasTable)
+      .where(eq(campanhasTable.id, params.data.id));
+    if (!before) {
+      res.status(404).json({ error: "Campanha não encontrada" });
+      return;
+    }
+
     const updates: Partial<typeof campanhasTable.$inferInsert> = {};
     if (parsed.data.title !== undefined) updates.title = parsed.data.title;
     if (parsed.data.description !== undefined)
@@ -163,15 +176,23 @@ router.patch(
     if (parsed.data.endDate !== undefined) updates.endDate = parsed.data.endDate;
     if (parsed.data.externalLink !== undefined)
       updates.externalLink = parsed.data.externalLink;
+    if (parsed.data.status !== undefined) updates.status = parsed.data.status;
 
-    const [campaign] = await db
-      .update(campanhasTable)
-      .set(updates)
-      .where(eq(campanhasTable.id, params.data.id))
-      .returning();
+    let campaign = before;
+    if (Object.keys(updates).length > 0) {
+      [campaign] = await db
+        .update(campanhasTable)
+        .set(updates)
+        .where(eq(campanhasTable.id, params.data.id))
+        .returning();
+    }
     if (!campaign) {
       res.status(404).json({ error: "Campanha não encontrada" });
       return;
+    }
+    // Reactivation announces the campaign again (deduped by origin+refId)
+    if (campaign.status === "active" && before.status !== "active") {
+      void announceCampaignActivated(campaign, req.user!.id);
     }
     res.json(await campaignDto(campaign));
   },

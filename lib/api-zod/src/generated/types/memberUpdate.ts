@@ -16,5 +16,15 @@ export interface MemberUpdate {
   role?: MemberUpdateRole;
   categories?: MemberUpdateCategoriesItem[];
   formationTrack?: string;
+  /**
+     * Birth date (YYYY-MM-DD), null clears it
+     * @nullable
+     */
+  birthDate?: string | null;
+  /**
+     * Object path of the profile picture, null clears it
+     * @nullable
+     */
+  avatarPath?: string | null;
   active?: boolean;
 }

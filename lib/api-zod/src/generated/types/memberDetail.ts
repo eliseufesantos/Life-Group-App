@@ -23,6 +23,16 @@ export interface MemberDetail {
   categories: MemberDetailCategoriesItem[];
   /** @nullable */
   formationTrack?: string | null;
+  /**
+     * Birth date (YYYY-MM-DD)
+     * @nullable
+     */
+  birthDate: string | null;
+  /**
+     * Object path of the profile picture
+     * @nullable
+     */
+  avatarPath: string | null;
   /** @nullable */
   invitedBy?: string | null;
   /** @nullable */

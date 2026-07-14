@@ -220,7 +220,7 @@ export function reportToCsv(report: Relatorio): string {
     lines.push(cells.map(csvEscape).join(","));
   };
 
-  row("Relatório da Célula");
+  row("Relatório do Life Group");
   row("Período", `${report.periodStart} a ${report.periodEnd}`);
   row("Gerado em", report.createdAt.toISOString());
   row(
