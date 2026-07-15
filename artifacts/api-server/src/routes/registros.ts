@@ -299,12 +299,18 @@ async function activeCampaignId(): Promise<number | null> {
   return campaign?.id ?? null;
 }
 
+/** Executor aceito pelos helpers: a conexão do pool ou uma transação. */
+type Executor =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 async function createGuests(
   guests: Array<{ name: string; phone?: string }>,
+  executor: Executor = db,
 ): Promise<number[]> {
   const ids: number[] = [];
   for (const g of guests) {
-    const [guest] = await db
+    const [guest] = await executor
       .insert(usuariosTable)
       .values({
         name: g.name,
@@ -406,62 +412,78 @@ router.post(
       }
     }
 
-    const [maxRow] = await db
-      .select({
-        max: sql<number | null>`max(${registrosEncontroTable.seq})`,
-      })
-      .from(registrosEncontroTable);
-    const seq = (maxRow?.max ?? 0) + 1;
-
     const isLeader = req.user!.role === "leader";
     const status = isLeader ? "published" : "pending";
 
-    const [registro] = await db
-      .insert(registrosEncontroTable)
-      .values({
-        eventDate: data.eventDate,
-        seq,
-        status,
-        createdBy: req.user!.id,
-        approvedBy: isLeader ? req.user!.id : null,
-        albumId: data.albumId ?? null,
-        notes: data.notes ?? null,
-      })
-      .returning();
+    // Registro + listas relacionadas são gravados numa única transação: se
+    // qualquer insert falhar (ex.: colisão de seq ou FK obsoleta), tudo é
+    // desfeito e nenhum registro/atividade parcial permanece.
+    let registro: RegistroEncontro;
+    try {
+      registro = await db.transaction(async (tx) => {
+        const [maxRow] = await tx
+          .select({
+            max: sql<number | null>`max(${registrosEncontroTable.seq})`,
+          })
+          .from(registrosEncontroTable);
+        const seq = (maxRow?.max ?? 0) + 1;
 
-    const guestIds = await createGuests(data.novosConvidados ?? []);
-    const presentIds = Array.from(new Set([...data.presentes, ...guestIds]));
-    if (presentIds.length > 0) {
-      await db.insert(presencasRegistroTable).values(
-        presentIds.map((userId) => ({
-          registroId: registro.id,
-          userId,
-        })),
-      );
-    }
+        const [reg] = await tx
+          .insert(registrosEncontroTable)
+          .values({
+            eventDate: data.eventDate,
+            seq,
+            status,
+            createdBy: req.user!.id,
+            approvedBy: isLeader ? req.user!.id : null,
+            albumId: data.albumId ?? null,
+            notes: data.notes ?? null,
+          })
+          .returning();
 
-    if (atividades.length > 0) {
-      await db.insert(atividadesRegistroTable).values(
-        atividades.map((a) => ({
-          registroId: registro.id,
-          atividadeId: a.atividadeId ?? null,
-          name: a.name,
-          responsavelId: a.responsavelId ?? null,
-          durationMin: a.durationMin ?? null,
-        })),
-      );
-    }
+        const guestIds = await createGuests(data.novosConvidados ?? [], tx);
+        const presentIds = Array.from(
+          new Set([...data.presentes, ...guestIds]),
+        );
+        if (presentIds.length > 0) {
+          await tx.insert(presencasRegistroTable).values(
+            presentIds.map((userId) => ({
+              registroId: reg.id,
+              userId,
+            })),
+          );
+        }
 
-    if (arrecadacao.length > 0 && campaignId !== null) {
-      await db.insert(itensArrecadadosTable).values(
-        arrecadacao.map((i) => ({
-          campaignId: campaignId!,
-          registroId: registro.id,
-          itemName: i.item,
-          quantity: i.quantity,
-          registeredBy: req.user!.id,
-        })),
-      );
+        if (atividades.length > 0) {
+          await tx.insert(atividadesRegistroTable).values(
+            atividades.map((a) => ({
+              registroId: reg.id,
+              atividadeId: a.atividadeId ?? null,
+              name: a.name,
+              responsavelId: a.responsavelId ?? null,
+              durationMin: a.durationMin ?? null,
+            })),
+          );
+        }
+
+        if (arrecadacao.length > 0 && campaignId !== null) {
+          await tx.insert(itensArrecadadosTable).values(
+            arrecadacao.map((i) => ({
+              campaignId: campaignId!,
+              registroId: reg.id,
+              itemName: i.item,
+              quantity: i.quantity,
+              registeredBy: req.user!.id,
+            })),
+          );
+        }
+
+        return reg;
+      });
+    } catch (err) {
+      req.log.error({ err }, "Falha ao criar registro de encontro");
+      res.status(500).json({ error: "Não foi possível criar o registro" });
+      return;
     }
 
     if (registro.status === "pending") {
@@ -581,65 +603,81 @@ router.patch(
       update.approvedBy = null;
     }
 
-    const [registro] = await db
-      .update(registrosEncontroTable)
-      .set(update)
-      .where(eq(registrosEncontroTable.id, existing.id))
-      .returning();
+    // A substituição das listas relacionadas (presenças, atividades,
+    // arrecadação) roda numa transação: sem isso, um insert que falha após o
+    // delete deixaria o registro sem as atividades antigas (perda de dados).
+    let registro: RegistroEncontro;
+    try {
+      registro = await db.transaction(async (tx) => {
+        const [reg] = await tx
+          .update(registrosEncontroTable)
+          .set(update)
+          .where(eq(registrosEncontroTable.id, existing.id))
+          .returning();
 
-    const guestIds = await createGuests(data.novosConvidados ?? []);
-    if (data.presentes !== undefined) {
-      await db
-        .delete(presencasRegistroTable)
-        .where(eq(presencasRegistroTable.registroId, registro.id));
-      const presentIds = Array.from(new Set([...data.presentes, ...guestIds]));
-      if (presentIds.length > 0) {
-        await db.insert(presencasRegistroTable).values(
-          presentIds.map((userId) => ({
-            registroId: registro.id,
-            userId,
-          })),
-        );
-      }
-    } else if (guestIds.length > 0) {
-      await db
-        .insert(presencasRegistroTable)
-        .values(guestIds.map((userId) => ({ registroId: registro.id, userId })))
-        .onConflictDoNothing();
-    }
+        const guestIds = await createGuests(data.novosConvidados ?? [], tx);
+        if (data.presentes !== undefined) {
+          await tx
+            .delete(presencasRegistroTable)
+            .where(eq(presencasRegistroTable.registroId, reg.id));
+          const presentIds = Array.from(
+            new Set([...data.presentes, ...guestIds]),
+          );
+          if (presentIds.length > 0) {
+            await tx.insert(presencasRegistroTable).values(
+              presentIds.map((userId) => ({
+                registroId: reg.id,
+                userId,
+              })),
+            );
+          }
+        } else if (guestIds.length > 0) {
+          await tx
+            .insert(presencasRegistroTable)
+            .values(guestIds.map((userId) => ({ registroId: reg.id, userId })))
+            .onConflictDoNothing();
+        }
 
-    if (data.atividades !== undefined) {
-      await db
-        .delete(atividadesRegistroTable)
-        .where(eq(atividadesRegistroTable.registroId, registro.id));
-      if (atividades.length > 0) {
-        await db.insert(atividadesRegistroTable).values(
-          atividades.map((a) => ({
-            registroId: registro.id,
-            atividadeId: a.atividadeId ?? null,
-            name: a.name,
-            responsavelId: a.responsavelId ?? null,
-            durationMin: a.durationMin ?? null,
-          })),
-        );
-      }
-    }
+        if (data.atividades !== undefined) {
+          await tx
+            .delete(atividadesRegistroTable)
+            .where(eq(atividadesRegistroTable.registroId, reg.id));
+          if (atividades.length > 0) {
+            await tx.insert(atividadesRegistroTable).values(
+              atividades.map((a) => ({
+                registroId: reg.id,
+                atividadeId: a.atividadeId ?? null,
+                name: a.name,
+                responsavelId: a.responsavelId ?? null,
+                durationMin: a.durationMin ?? null,
+              })),
+            );
+          }
+        }
 
-    if (data.arrecadacao !== undefined) {
-      await db
-        .delete(itensArrecadadosTable)
-        .where(eq(itensArrecadadosTable.registroId, registro.id));
-      if (data.arrecadacao.length > 0 && campaignId !== null) {
-        await db.insert(itensArrecadadosTable).values(
-          data.arrecadacao.map((i) => ({
-            campaignId: campaignId!,
-            registroId: registro.id,
-            itemName: i.item,
-            quantity: i.quantity,
-            registeredBy: req.user!.id,
-          })),
-        );
-      }
+        if (data.arrecadacao !== undefined) {
+          await tx
+            .delete(itensArrecadadosTable)
+            .where(eq(itensArrecadadosTable.registroId, reg.id));
+          if (data.arrecadacao.length > 0 && campaignId !== null) {
+            await tx.insert(itensArrecadadosTable).values(
+              data.arrecadacao.map((i) => ({
+                campaignId: campaignId!,
+                registroId: reg.id,
+                itemName: i.item,
+                quantity: i.quantity,
+                registeredBy: req.user!.id,
+              })),
+            );
+          }
+        }
+
+        return reg;
+      });
+    } catch (err) {
+      req.log.error({ err }, "Falha ao atualizar registro de encontro");
+      res.status(500).json({ error: "Não foi possível atualizar o registro" });
+      return;
     }
 
     if (backToPending) {

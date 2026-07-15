@@ -85,6 +85,15 @@ export interface RegistroAlbumRef {
   driveUrl: string | null;
 }
 
+/**
+ * Foto anexada mas ainda não persistida — usada no fluxo de criação, onde o
+ * álbum/foto só são gravados depois que o registro existe (evita álbum/foto
+ * órfãos no mural quando a criação é cancelada ou falha).
+ */
+export type PendingPhoto =
+  | { kind: "upload"; objectPath: string }
+  | { kind: "drive"; externalUrl: string };
+
 export interface RegistroFormValue {
   eventDate: string;
   /** Ids de membros e convidados existentes marcados como presentes */
@@ -92,6 +101,8 @@ export interface RegistroFormValue {
   novosConvidados: NovoConvidado[];
   atividades: AtividadeSelecionada[];
   album: RegistroAlbumRef | null;
+  /** Foto anexada aguardando persistência junto com o salvamento (criação). */
+  pendingPhoto: PendingPhoto | null;
   arrecadacao: ArrecadacaoLinha[];
   notes: string;
 }
@@ -103,6 +114,7 @@ export function emptyRegistroForm(eventDate?: string): RegistroFormValue {
     novosConvidados: [],
     atividades: [],
     album: null,
+    pendingPhoto: null,
     arrecadacao: [],
     notes: "",
   };
@@ -120,6 +132,7 @@ export function registroFormFromDetail(detail: RegistroDetail): RegistroFormValu
       durationMin: a.durationMin ?? undefined,
     })),
     album: detail.album,
+    pendingPhoto: null,
     arrecadacao: detail.arrecadacao.map((i) => ({
       item: i.itemName,
       quantity: String(i.quantity),
@@ -166,6 +179,46 @@ export function buildRegistroInput(v: RegistroFormValue): RegistroInput {
     ...(arrecadacao.length > 0 ? { arrecadacao } : {}),
     ...(v.notes.trim() ? { notes: v.notes.trim() } : {}),
   };
+}
+
+/**
+ * Persiste a foto pendente DEPOIS que o registro já existe: cria o álbum
+ * "Encontro {data}" e a foto (upload ou link do Drive) e retorna o id do
+ * álbum, para o chamador vinculá-lo ao registro. Como roda após a criação do
+ * registro, um cancelamento/falha na criação nunca deixa álbum/foto órfãos.
+ */
+export async function persistPendingPhoto(opts: {
+  pending: PendingPhoto;
+  eventDate: string;
+  createAlbumAsync: (args: {
+    data: { title: string; eventId?: number; driveUrl?: string };
+  }) => Promise<{ id: number }>;
+  createPhotoAsync: (args: {
+    data: {
+      objectPath?: string;
+      sourceType?: "upload" | "drive";
+      externalUrl?: string;
+      albumId?: number;
+    };
+  }) => Promise<unknown>;
+}): Promise<number> {
+  const album = await opts.createAlbumAsync({
+    data: { title: `Encontro ${formatEventDate(opts.eventDate)}` },
+  });
+  if (opts.pending.kind === "upload") {
+    await opts.createPhotoAsync({
+      data: { objectPath: opts.pending.objectPath, albumId: album.id },
+    });
+  } else {
+    await opts.createPhotoAsync({
+      data: {
+        sourceType: "drive",
+        externalUrl: opts.pending.externalUrl,
+        albumId: album.id,
+      },
+    });
+  }
+  return album.id;
 }
 
 /** PATCH: arrays completos — o backend substitui as listas enviadas. */
@@ -230,9 +283,16 @@ function PersonToggleRow({
 export function RegistroFormSections({
   value,
   onChange,
+  deferPhotoPersistence = false,
 }: {
   value: RegistroFormValue;
   onChange: (next: RegistroFormValue) => void;
+  /**
+   * Na criação, a foto do dia é guardada como pendente e persistida pelo
+   * chamador após o registro existir (via {@link persistPendingPhoto}), em vez
+   * de criar álbum/foto imediatamente.
+   */
+  deferPhotoPersistence?: boolean;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -468,6 +528,14 @@ export function RegistroFormSections({
   const handlePhotoUploadComplete = async (result: any) => {
     const objectPath = result?.successful?.[0]?.meta?.objectPath;
     if (!objectPath) return;
+    if (deferPhotoPersistence) {
+      patch({ pendingPhoto: { kind: "upload", objectPath } });
+      toast({
+        title: "Foto anexada",
+        description: "Será salva junto com o registro.",
+      });
+      return;
+    }
     try {
       const album = await ensureAlbum();
       await createPhoto.mutateAsync({ data: { objectPath, albumId: album.id } });
@@ -488,6 +556,16 @@ export function RegistroFormSections({
         variant: "destructive",
         title: "Link inválido",
         description: "O link do Drive deve começar com https://",
+      });
+      return;
+    }
+    if (deferPhotoPersistence) {
+      patch({ pendingPhoto: { kind: "drive", externalUrl: driveUrl } });
+      setDriveUrl("");
+      setDriveFormOpen(false);
+      toast({
+        title: "Link anexado",
+        description: "Será salvo junto com o registro.",
       });
       return;
     }
@@ -754,7 +832,35 @@ export function RegistroFormSections({
             </p>
           )}
 
-          {attachedPhoto ? (
+          {deferPhotoPersistence && value.pendingPhoto ? (
+            <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                {value.pendingPhoto.kind === "drive" ? (
+                  <ExternalLink className="h-4 w-4 text-primary" />
+                ) : (
+                  <ImagePlus className="h-4 w-4 text-primary" />
+                )}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                {value.pendingPhoto.kind === "drive"
+                  ? "Link do Drive anexado"
+                  : "Foto anexada"}
+                <span className="block text-xs font-normal text-muted-foreground">
+                  Será salva ao salvar o registro
+                </span>
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                aria-label="Remover foto anexada"
+                onClick={() => patch({ pendingPhoto: null })}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : attachedPhoto ? (
             attachedPhoto.sourceType === "drive" ? (
               <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
