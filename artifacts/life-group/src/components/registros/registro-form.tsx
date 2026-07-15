@@ -312,7 +312,11 @@ export function RegistroFormSections({
 
   const { data: catalogo, isLoading: isLoadingCatalogo } = useListRegistroActivities();
   const { data: campaigns } = useListCampaigns();
-  const activeCampaign = (campaigns ?? []).find((c) => c.status === "active");
+  // Só campanhas que recebem itens: a tela de Campanhas não lista itens de uma
+  // campanha de dinheiro, então a arrecadação lançada ali ficaria invisível.
+  const activeCampaign = (campaigns ?? []).find(
+    (c) => c.status === "active" && (c.type === "items" || c.type === "both"),
+  );
 
   const { data: photos } = useListPhotos();
   const albumPhotos = value.album

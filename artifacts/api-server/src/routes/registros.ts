@@ -289,11 +289,27 @@ async function validateAlbumId(albumId: number): Promise<string | null> {
 }
 
 /** Find the currently active campaign to link donated items to. */
+/** Tipos de campanha que recebem itens — uma campanha só de dinheiro não. */
+const ITEM_CAMPAIGN_TYPES = ["items", "both"] as const;
+
+/** Chave do advisory lock que serializa a numeração sequencial do registro. */
+const REGISTRO_SEQ_LOCK = 428_517;
+
+/**
+ * Campanha ativa que aceita itens. O filtro por tipo importa: a tela de
+ * Campanhas só lista itens de campanhas `items`/`both`, então itens lançados
+ * numa campanha de dinheiro ficariam invisíveis, mas contando nos relatórios.
+ */
 async function activeCampaignId(): Promise<number | null> {
   const [campaign] = await db
     .select({ id: campanhasTable.id })
     .from(campanhasTable)
-    .where(eq(campanhasTable.status, "active"))
+    .where(
+      and(
+        eq(campanhasTable.status, "active"),
+        inArray(campanhasTable.type, [...ITEM_CAMPAIGN_TYPES]),
+      ),
+    )
     .orderBy(desc(campanhasTable.createdAt))
     .limit(1);
   return campaign?.id ?? null;
@@ -421,6 +437,10 @@ router.post(
     let registro: RegistroEncontro;
     try {
       registro = await db.transaction(async (tx) => {
+        // Serializa a numeração: sem isso, dois envios simultâneos leem o
+        // mesmo max(seq) e um deles morre no unique constraint, perdendo o
+        // formulário que a pessoa acabou de preencher. O lock cai no commit.
+        await tx.execute(sql`select pg_advisory_xact_lock(${REGISTRO_SEQ_LOCK})`);
         const [maxRow] = await tx
           .select({
             max: sql<number | null>`max(${registrosEncontroTable.seq})`,
@@ -610,12 +630,21 @@ router.patch(
           return;
         }
         const [campaign] = await db
-          .select({ status: campanhasTable.status })
+          .select({
+            status: campanhasTable.status,
+            type: campanhasTable.type,
+          })
           .from(campanhasTable)
           .where(eq(campanhasTable.id, campaignId));
         if (!campaign || campaign.status !== "active") {
           res.status(400).json({
             error: "Campanha encerrada; não é possível alterar a arrecadação",
+          });
+          return;
+        }
+        if (!ITEM_CAMPAIGN_TYPES.includes(campaign.type as "items" | "both")) {
+          res.status(400).json({
+            error: "A campanha desta arrecadação não recebe itens",
           });
           return;
         }
@@ -777,9 +806,18 @@ router.delete(
       res.status(400).json({ error: params.error.message });
       return;
     }
-    await db
-      .delete(registrosEncontroTable)
-      .where(eq(registrosEncontroTable.id, params.data.id));
+    // Os itens lançados por este registro saem junto. A FK é `set null`, e
+    // `registroId` nulo significa "lançado direto na campanha" — deixá-los
+    // para trás os disfarçaria de lançamento direto, sem rastro do encontro,
+    // ainda somando nos totais e relatórios da campanha.
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(itensArrecadadosTable)
+        .where(eq(itensArrecadadosTable.registroId, params.data.id));
+      await tx
+        .delete(registrosEncontroTable)
+        .where(eq(registrosEncontroTable.id, params.data.id));
+    });
     void removeRegistroPendingAviso(params.data.id);
     res.json({ ok: true });
   },
