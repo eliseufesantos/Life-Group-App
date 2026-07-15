@@ -232,9 +232,18 @@ router.patch(
       return;
     }
 
+    // As telas enviam o formulário inteiro, então um campo apenas presente não
+    // significa alteração: as restrições abaixo valem para mudanças reais, ou
+    // um auxiliar não conseguiria editar nada e o líder não editaria o próprio
+    // perfil.
+    const nextEmail =
+      data.email !== undefined ? data.email.trim().toLowerCase() || null : undefined;
+    const roleChanged = data.role !== undefined && data.role !== target.role;
+    const emailChanged = nextEmail !== undefined && nextEmail !== target.email;
+
     // Only the leader assigns roles, and nobody changes their own role
     // (an auxiliary could otherwise self-promote to leader).
-    if (data.role !== undefined) {
+    if (roleChanged) {
       if (req.user!.role !== "leader") {
         res.status(403).json({ error: "Apenas o líder pode alterar papéis" });
         return;
@@ -248,15 +257,14 @@ router.patch(
     }
     // Only the leader changes an e-mail — it is the magic-link login channel,
     // so an auxiliary editing it would be an account-takeover vector.
-    if (data.email !== undefined && req.user!.role !== "leader") {
+    if (emailChanged && req.user!.role !== "leader") {
       res.status(403).json({ error: "Apenas o líder pode alterar e-mail" });
       return;
     }
 
     const update: Record<string, unknown> = {};
     if (data.name !== undefined) update.name = data.name;
-    if (data.email !== undefined)
-      update.email = data.email.trim().toLowerCase() || null;
+    if (nextEmail !== undefined) update.email = nextEmail;
     if (data.phone !== undefined) update.phone = data.phone || null;
     if (data.role !== undefined) update.role = data.role;
     if (data.categories !== undefined) update.categories = data.categories;

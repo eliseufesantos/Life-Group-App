@@ -572,21 +572,53 @@ router.patch(
       }
     }
 
-    // Replaced donation entries stay linked to the campaign of the existing
-    // entries when possible, falling back to the currently active campaign
+    // A tela envia a lista de arrecadação inteira a cada salvamento, então só
+    // reescrevemos quando ela realmente mudou — assim editar outro campo não
+    // remexe nos itens. Quando muda, a campanha afetada precisa estar ativa
+    // (mesma regra de POST /campaigns/:id/items): a campanha dos itens já
+    // lançados, ou a ativa quando ainda não há itens.
     let campaignId: number | null = null;
-    if (data.arrecadacao !== undefined && data.arrecadacao.length > 0) {
-      const [existingItem] = await db
-        .select({ campaignId: itensArrecadadosTable.campaignId })
+    let rewriteArrecadacao = false;
+    if (data.arrecadacao !== undefined) {
+      const existingItems = await db
+        .select({
+          itemName: itensArrecadadosTable.itemName,
+          quantity: itensArrecadadosTable.quantity,
+          campaignId: itensArrecadadosTable.campaignId,
+        })
         .from(itensArrecadadosTable)
         .where(eq(itensArrecadadosTable.registroId, existing.id))
-        .limit(1);
-      campaignId = existingItem?.campaignId ?? (await activeCampaignId());
-      if (campaignId === null) {
-        res.status(400).json({
-          error: "Não há campanha ativa para registrar a arrecadação",
-        });
-        return;
+        .orderBy(asc(itensArrecadadosTable.id));
+
+      const fingerprint = (list: Array<{ item: string; quantity: number }>) =>
+        list
+          .map((i) => `${i.item.trim()}::${i.quantity}`)
+          .sort()
+          .join("|");
+      rewriteArrecadacao =
+        fingerprint(data.arrecadacao) !==
+        fingerprint(
+          existingItems.map((i) => ({ item: i.itemName, quantity: i.quantity })),
+        );
+
+      if (rewriteArrecadacao) {
+        campaignId = existingItems[0]?.campaignId ?? (await activeCampaignId());
+        if (campaignId === null) {
+          res.status(400).json({
+            error: "Não há campanha ativa para registrar a arrecadação",
+          });
+          return;
+        }
+        const [campaign] = await db
+          .select({ status: campanhasTable.status })
+          .from(campanhasTable)
+          .where(eq(campanhasTable.id, campaignId));
+        if (!campaign || campaign.status !== "active") {
+          res.status(400).json({
+            error: "Campanha encerrada; não é possível alterar a arrecadação",
+          });
+          return;
+        }
       }
     }
 
@@ -655,7 +687,7 @@ router.patch(
           }
         }
 
-        if (data.arrecadacao !== undefined) {
+        if (rewriteArrecadacao && data.arrecadacao !== undefined) {
           await tx
             .delete(itensArrecadadosTable)
             .where(eq(itensArrecadadosTable.registroId, reg.id));
@@ -680,12 +712,18 @@ router.patch(
       return;
     }
 
-    if (backToPending) {
-      void notifyRegistroPendente({
-        id: registro.id,
-        seq: registro.seq,
-        eventDate: registro.eventDate,
-      });
+    if (registro.status === "pending") {
+      // Ao voltar a pendente, os líderes são notificados. Numa edição de
+      // registro que já estava pendente, só atualizamos o aviso do mural (a
+      // data faz parte do texto) — sem notificar de novo a cada ajuste.
+      void notifyRegistroPendente(
+        {
+          id: registro.id,
+          seq: registro.seq,
+          eventDate: registro.eventDate,
+        },
+        { notifyLeaders: backToPending },
+      );
     }
 
     res.json(await registroDetail(registro));

@@ -134,7 +134,9 @@ export default function MemberDetail() {
     if (!isGuest) {
       payload.formationTrack = data.formationTrack;
       payload.categories = data.categories;
-      if (member.status === "member") payload.role = data.role;
+      // Só o líder nomeia funções (RF-1.4); enviar o campo como auxiliar seria
+      // recusado pela API e bloquearia a edição dos demais dados.
+      if (member.status === "member" && isLeader) payload.role = data.role;
     }
     if (avatarDraft !== undefined) payload.avatarPath = avatarDraft;
 
@@ -285,7 +287,18 @@ export default function MemberDetail() {
                   <FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={editForm.control} name="email" render={({ field }) => (
-                  <FormItem><FormLabel>E-mail</FormLabel><FormControl><Input {...field} type="email" /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>E-mail</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" disabled={!isLeader} />
+                    </FormControl>
+                    {!isLeader && (
+                      <p className="text-xs text-muted-foreground">
+                        Só o líder altera o e-mail — é o canal de acesso ao app.
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
                 )} />
                 <FormField control={editForm.control} name="phone" render={({ field }) => (
                   <FormItem><FormLabel>Telefone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -309,7 +322,7 @@ export default function MemberDetail() {
                   )} />
                 )}
 
-                {member.status === "member" && (
+                {member.status === "member" && isLeader && (
                   <FormField control={editForm.control} name="role" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Função</FormLabel>

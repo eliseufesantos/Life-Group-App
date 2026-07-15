@@ -102,11 +102,24 @@ export async function ensureBirthdayAvisos(): Promise<void> {
  * approval: post/update the mural aviso (dedupe via origin+refId) and send a
  * personal notification to every leader.
  */
-export async function notifyRegistroPendente(registro: {
-  id: number;
-  seq: number;
-  eventDate: string;
-}): Promise<void> {
+/**
+ * Publica/atualiza o aviso de pendência do registro no mural e, por padrão,
+ * notifica os líderes.
+ *
+ * `notifyLeaders: false` serve para edições de um registro que já estava
+ * pendente: o aviso do mural precisa refletir os novos dados (a data aparece
+ * no texto), mas os líderes não devem receber uma notificação pessoal a cada
+ * ajuste — a responsabilidade já lhes foi comunicada quando ficou pendente.
+ */
+export async function notifyRegistroPendente(
+  registro: {
+    id: number;
+    seq: number;
+    eventDate: string;
+  },
+  options: { notifyLeaders?: boolean } = {},
+): Promise<void> {
+  const { notifyLeaders = true } = options;
   try {
     const title = `Registro do encontro de ${formatDateBr(registro.eventDate)} aguarda aprovação do líder`;
     const body = `O registro nº ${registro.seq} foi enviado por um auxiliar e aguarda aprovação.`;
@@ -133,6 +146,7 @@ export async function notifyRegistroPendente(registro: {
         refId: registro.id,
       });
     }
+    if (!notifyLeaders) return;
     const leaders = await db
       .select({ id: usuariosTable.id })
       .from(usuariosTable)
