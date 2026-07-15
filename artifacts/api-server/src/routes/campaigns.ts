@@ -24,6 +24,7 @@ import {
   type AuthedRequest,
 } from "../lib/auth";
 import { announceCampaignActivated } from "../lib/automations";
+import { isSafeHttpUrl } from "../lib/validation";
 
 const router: IRouter = Router();
 
@@ -123,6 +124,13 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+    if (
+      parsed.data.externalLink != null &&
+      !isSafeHttpUrl(parsed.data.externalLink)
+    ) {
+      res.status(400).json({ error: "Link externo inválido" });
+      return;
+    }
     const [campaign] = await db
       .insert(campanhasTable)
       .values({
@@ -174,8 +182,16 @@ router.patch(
     if (parsed.data.startDate !== undefined)
       updates.startDate = parsed.data.startDate;
     if (parsed.data.endDate !== undefined) updates.endDate = parsed.data.endDate;
-    if (parsed.data.externalLink !== undefined)
+    if (parsed.data.externalLink !== undefined) {
+      if (
+        parsed.data.externalLink != null &&
+        !isSafeHttpUrl(parsed.data.externalLink)
+      ) {
+        res.status(400).json({ error: "Link externo inválido" });
+        return;
+      }
       updates.externalLink = parsed.data.externalLink;
+    }
     if (parsed.data.status !== undefined) updates.status = parsed.data.status;
 
     let campaign = before;
@@ -286,6 +302,12 @@ router.post(
       .where(eq(campanhasTable.id, params.data.id));
     if (!campaign) {
       res.status(404).json({ error: "Campanha não encontrada" });
+      return;
+    }
+    if (campaign.status !== "active") {
+      res
+        .status(400)
+        .json({ error: "Não é possível registrar itens em campanha encerrada" });
       return;
     }
     const [item] = await db

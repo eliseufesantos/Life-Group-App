@@ -18,8 +18,10 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, requirePrivileged, isPrivileged, type AuthedRequest } from "../lib/auth";
 import { toMember, toDiscipleship, type DiscipleshipRow } from "../lib/mappers";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
+const objectStorageService = new ObjectStorageService();
 
 async function loadDiscipleships(memberId: number) {
   const rels = await db
@@ -230,6 +232,27 @@ router.patch(
       return;
     }
 
+    // Only the leader assigns roles, and nobody changes their own role
+    // (an auxiliary could otherwise self-promote to leader).
+    if (data.role !== undefined) {
+      if (req.user!.role !== "leader") {
+        res.status(403).json({ error: "Apenas o líder pode alterar papéis" });
+        return;
+      }
+      if (params.data.id === req.user!.id) {
+        res
+          .status(403)
+          .json({ error: "Não é possível alterar o próprio papel" });
+        return;
+      }
+    }
+    // Only the leader changes an e-mail — it is the magic-link login channel,
+    // so an auxiliary editing it would be an account-takeover vector.
+    if (data.email !== undefined && req.user!.role !== "leader") {
+      res.status(403).json({ error: "Apenas o líder pode alterar e-mail" });
+      return;
+    }
+
     const update: Record<string, unknown> = {};
     if (data.name !== undefined) update.name = data.name;
     if (data.email !== undefined)
@@ -240,8 +263,31 @@ router.patch(
     if (data.formationTrack !== undefined)
       update.formationTrack = data.formationTrack || null;
     if (data.birthDate !== undefined) update.birthDate = data.birthDate || null;
-    if (data.avatarPath !== undefined)
-      update.avatarPath = data.avatarPath || null;
+    if (data.avatarPath !== undefined) {
+      const raw = data.avatarPath?.trim() ?? "";
+      if (raw === "") {
+        update.avatarPath = null;
+      } else if (!raw.startsWith("/objects/")) {
+        res.status(400).json({ error: "avatarPath inválido" });
+        return;
+      } else {
+        // Grant read access to the uploaded object, or GET /api/storage 403s
+        // and the avatar never loads. Owner is the profile being edited.
+        try {
+          await objectStorageService.trySetObjectEntityAclPolicy(raw, {
+            owner: String(params.data.id),
+            visibility: "public",
+          });
+        } catch (error) {
+          req.log.error({ err: error }, "Falha ao definir ACL do avatar");
+          res
+            .status(400)
+            .json({ error: "Objeto não encontrado no armazenamento" });
+          return;
+        }
+        update.avatarPath = raw;
+      }
+    }
     if (data.active !== undefined) update.active = data.active;
 
     const [member] = await db
@@ -274,6 +320,22 @@ router.post(
       return;
     }
     const email = parsed.data.email.trim().toLowerCase();
+    const [target] = await db
+      .select({ status: usuariosTable.status })
+      .from(usuariosTable)
+      .where(eq(usuariosTable.id, params.data.id));
+    if (!target) {
+      res.status(404).json({ error: "Convidado nao encontrado" });
+      return;
+    }
+    // Only guests can be promoted — otherwise this endpoint could rewrite an
+    // existing member/leader's email and role (account-takeover vector).
+    if (target.status !== "guest") {
+      res
+        .status(400)
+        .json({ error: "Apenas convidados podem ser promovidos" });
+      return;
+    }
     const [member] = await db
       .update(usuariosTable)
       .set({

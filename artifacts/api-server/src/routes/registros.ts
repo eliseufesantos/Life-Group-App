@@ -261,6 +261,25 @@ async function validateUserIds(ids: number[]): Promise<string | null> {
   return null;
 }
 
+/**
+ * Guests may attend a meeting (presence) but never be the responsible person
+ * for an activity — being responsible is a function, which guests never hold.
+ */
+async function hasGuestResponsible(ids: number[]): Promise<boolean> {
+  const unique = Array.from(new Set(ids));
+  if (unique.length === 0) return false;
+  const rows = await db
+    .select({ id: usuariosTable.id })
+    .from(usuariosTable)
+    .where(
+      and(
+        inArray(usuariosTable.id, unique),
+        eq(usuariosTable.status, "guest"),
+      ),
+    );
+  return rows.length > 0;
+}
+
 async function validateAlbumId(albumId: number): Promise<string | null> {
   const [album] = await db
     .select({ id: albunsTable.id })
@@ -350,14 +369,21 @@ router.post(
     const data = parsed.data;
 
     const atividades = data.atividades ?? [];
+    const responsavelIds = atividades
+      .map((a) => a.responsavelId)
+      .filter((id): id is number => id !== undefined && id !== null);
     const userIdsError = await validateUserIds([
       ...data.presentes,
-      ...atividades
-        .map((a) => a.responsavelId)
-        .filter((id): id is number => id !== undefined),
+      ...responsavelIds,
     ]);
     if (userIdsError) {
       res.status(400).json({ error: userIdsError });
+      return;
+    }
+    if (await hasGuestResponsible(responsavelIds)) {
+      res
+        .status(400)
+        .json({ error: "Convidado não pode ser responsável por atividade" });
       return;
     }
     if (data.albumId !== undefined) {
@@ -499,14 +525,21 @@ router.patch(
     }
 
     const atividades = data.atividades ?? [];
+    const responsavelIds = atividades
+      .map((a) => a.responsavelId)
+      .filter((id): id is number => id !== undefined && id !== null);
     const userIdsError = await validateUserIds([
       ...(data.presentes ?? []),
-      ...atividades
-        .map((a) => a.responsavelId)
-        .filter((id): id is number => id !== undefined),
+      ...responsavelIds,
     ]);
     if (userIdsError) {
       res.status(400).json({ error: userIdsError });
+      return;
+    }
+    if (await hasGuestResponsible(responsavelIds)) {
+      res
+        .status(400)
+        .json({ error: "Convidado não pode ser responsável por atividade" });
       return;
     }
     if (data.albumId !== undefined && data.albumId !== null) {

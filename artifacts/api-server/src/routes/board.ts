@@ -41,6 +41,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, requirePrivileged, isPrivileged, type AuthedRequest } from "../lib/auth";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { isSafeHttpUrl } from "../lib/validation";
 import { notifyUsers } from "../lib/push";
 import { ensureBirthdayAvisos } from "../lib/automations";
 
@@ -281,6 +282,10 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+    if (parsed.data.endsAt && parsed.data.endsAt.getTime() <= Date.now()) {
+      res.status(400).json({ error: "O término deve ser no futuro" });
+      return;
+    }
     const [poll] = await db
       .insert(enquetesTable)
       .values({
@@ -447,11 +452,17 @@ router.post(
       return;
     }
     const [assignee] = await db
-      .select({ id: usuariosTable.id })
+      .select({ id: usuariosTable.id, status: usuariosTable.status })
       .from(usuariosTable)
       .where(eq(usuariosTable.id, parsed.data.assignedTo));
     if (!assignee) {
       res.status(400).json({ error: "Responsável não encontrado" });
+      return;
+    }
+    if (assignee.status === "guest") {
+      res
+        .status(400)
+        .json({ error: "Convidado não pode receber tarefas" });
       return;
     }
     const status = req.user!.role === "leader" ? "approved" : "proposed";
@@ -775,6 +786,13 @@ router.post("/board/albums", requireAuth, async (req: AuthedRequest, res): Promi
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (
+    parsed.data.driveUrl != null &&
+    !isSafeHttpUrl(parsed.data.driveUrl)
+  ) {
+    res.status(400).json({ error: "URL do Drive inválida" });
+    return;
+  }
   if (parsed.data.eventId !== undefined) {
     const [event] = await db
       .select({ id: eventosTable.id })
@@ -835,7 +853,16 @@ router.patch("/board/albums/:id", requireAuth, async (req: AuthedRequest, res): 
     }
     update.eventoId = parsed.data.eventId;
   }
-  if (parsed.data.driveUrl !== undefined) update.driveUrl = parsed.data.driveUrl;
+  if (parsed.data.driveUrl !== undefined) {
+    if (
+      parsed.data.driveUrl != null &&
+      !isSafeHttpUrl(parsed.data.driveUrl)
+    ) {
+      res.status(400).json({ error: "URL do Drive inválida" });
+      return;
+    }
+    update.driveUrl = parsed.data.driveUrl;
+  }
 
   let album = existing;
   if (Object.keys(update).length > 0) {
