@@ -286,18 +286,26 @@ router.post(
       res.status(400).json({ error: "O término deve ser no futuro" });
       return;
     }
-    const [poll] = await db
-      .insert(enquetesTable)
-      .values({
-        question: parsed.data.question,
-        endsAt: parsed.data.endsAt ?? null,
-        anonymous: parsed.data.anonymous ?? false,
-        createdBy: req.user!.id,
-      })
-      .returning();
-    await db
-      .insert(opcoesEnqueteTable)
-      .values(parsed.data.options.map((text) => ({ enqueteId: poll.id, text })));
+    // Enquete + opções numa transação: sem isso, uma falha após o primeiro
+    // insert deixaria uma enquete sem opções, que o GET ainda listaria
+    // (buildPolls tolera lista vazia) — uma enquete quebrada e visível.
+    const poll = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(enquetesTable)
+        .values({
+          question: parsed.data.question,
+          endsAt: parsed.data.endsAt ?? null,
+          anonymous: parsed.data.anonymous ?? false,
+          createdBy: req.user!.id,
+        })
+        .returning();
+      await tx
+        .insert(opcoesEnqueteTable)
+        .values(
+          parsed.data.options.map((text) => ({ enqueteId: created.id, text })),
+        );
+      return created;
+    });
     const [dto] = await buildPolls([poll], req.user!.id);
     res.status(201).json(dto);
   },

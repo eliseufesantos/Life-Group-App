@@ -28,6 +28,11 @@ import { isSafeHttpUrl } from "../lib/validation";
 
 const router: IRouter = Router();
 
+/** Tipos de campanha que recebem itens — uma campanha só de dinheiro não. */
+const ITEM_CAMPAIGN_TYPES = ["items", "both"] as const;
+const acceptsItems = (type: string): boolean =>
+  (ITEM_CAMPAIGN_TYPES as readonly string[]).includes(type);
+
 async function campaignDto(
   campaign: Campanha,
   itemCount?: number,
@@ -308,6 +313,15 @@ router.post(
       res
         .status(400)
         .json({ error: "Não é possível registrar itens em campanha encerrada" });
+      return;
+    }
+    // Uma campanha só de dinheiro não recebe itens: a tela de Campanhas não
+    // renderiza itens para `money`, então esses registros ficariam invisíveis
+    // mas contando nos totais/relatórios (RF-6.4: o app não lida com valores).
+    if (!acceptsItems(campaign.type)) {
+      res
+        .status(400)
+        .json({ error: "Esta campanha não recebe itens" });
       return;
     }
     const [item] = await db

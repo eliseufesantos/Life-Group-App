@@ -1,7 +1,15 @@
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db, avisosTable, usuariosTable, type Aviso } from "@workspace/db";
 import { notifyUsers } from "./push";
 import { logger } from "./logger";
+
+/** Executor aceito pelos helpers: a conexão do pool ou uma transação. */
+type Executor =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Chave do advisory lock que serializa a criação de avisos de aniversário. */
+const BIRTHDAY_LOCK = 428_518;
 
 const SAO_PAULO_TZ = "America/Sao_Paulo";
 
@@ -22,13 +30,16 @@ function formatDateBr(dateStr: string): string {
 }
 
 /** Insert an automatic aviso on the mural (createdBy null). */
-export async function postMuralAviso(options: {
-  title: string;
-  body: string;
-  origin: "manual" | "birthday" | "campaign" | "registro_pending";
-  refId?: number | null;
-}): Promise<Aviso> {
-  const [aviso] = await db
+export async function postMuralAviso(
+  options: {
+    title: string;
+    body: string;
+    origin: "manual" | "birthday" | "campaign" | "registro_pending";
+    refId?: number | null;
+  },
+  executor: Executor = db,
+): Promise<Aviso> {
+  const [aviso] = await executor
     .insert(avisosTable)
     .values({
       title: options.title,
@@ -64,30 +75,46 @@ export async function ensureBirthdayAvisos(): Promise<void> {
     const birthdayUsers = users.filter(
       (u) => u.birthDate !== null && u.birthDate.slice(5) === monthDay,
     );
-    for (const user of birthdayUsers) {
-      const [latest] = await db
-        .select()
-        .from(avisosTable)
-        .where(
-          and(
-            eq(avisosTable.origin, "birthday"),
-            eq(avisosTable.refId, user.id),
-          ),
-        )
-        .orderBy(desc(avisosTable.createdAt))
-        .limit(1);
-      if (latest && saoPauloDateString(latest.createdAt) === today) continue;
-      const title = `🎂 Hoje é aniversário de ${user.name}!`;
-      await postMuralAviso({
-        title,
-        body: `Deseje um feliz aniversário para ${user.name} no Life Group!`,
-        origin: "birthday",
-        refId: user.id,
-      });
+    if (birthdayUsers.length === 0) return;
+
+    // O scheduler horário e vários GET /board/announcements podem rodar isto
+    // ao mesmo tempo. Um advisory lock serializa o "checa-se-existe → insere":
+    // sem ele, todos passariam no check antes de qualquer commit e postariam o
+    // mesmo aviso. O broadcast (push, lento) fica fora do lock.
+    const notified: string[] = [];
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${BIRTHDAY_LOCK})`);
+      for (const user of birthdayUsers) {
+        const [latest] = await tx
+          .select()
+          .from(avisosTable)
+          .where(
+            and(
+              eq(avisosTable.origin, "birthday"),
+              eq(avisosTable.refId, user.id),
+            ),
+          )
+          .orderBy(desc(avisosTable.createdAt))
+          .limit(1);
+        if (latest && saoPauloDateString(latest.createdAt) === today) continue;
+        await postMuralAviso(
+          {
+            title: `🎂 Hoje é aniversário de ${user.name}!`,
+            body: `Deseje um feliz aniversário para ${user.name} no Life Group!`,
+            origin: "birthday",
+            refId: user.id,
+          },
+          tx,
+        );
+        notified.push(user.name);
+      }
+    });
+
+    for (const name of notified) {
       await notifyUsers({
         userIds: null,
         type: "announcement",
-        title,
+        title: `🎂 Hoje é aniversário de ${name}!`,
         body: "Passe no mural para deixar os parabéns.",
         link: "/mural",
       });
