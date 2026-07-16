@@ -11,6 +11,7 @@ import {
   fotosTable,
   albunsTable,
   eventosTable,
+  registrosEncontroTable,
   type Album,
   type Aviso,
   type Enquete,
@@ -899,6 +900,20 @@ router.delete("/board/albums/:id", requireAuth, async (req: AuthedRequest, res):
   }
   if (!isPrivileged(req.user) && album.createdBy !== req.user!.id) {
     res.status(403).json({ error: "Sem permissão para excluir este álbum" });
+    return;
+  }
+  // Um álbum usado como "foto do dia" de um registro não pode ser apagado às
+  // cegas: a FK é `set null` e o detalhe do registro só carrega fotos via
+  // `registro.album`, então apagar deixaria o registro sem foto silenciosamente.
+  const [linked] = await db
+    .select({ id: registrosEncontroTable.id, seq: registrosEncontroTable.seq })
+    .from(registrosEncontroTable)
+    .where(eq(registrosEncontroTable.albumId, album.id))
+    .limit(1);
+  if (linked) {
+    res.status(409).json({
+      error: `Álbum vinculado ao registro Life Group ${linked.seq}. Desvincule-o do registro antes de excluir.`,
+    });
     return;
   }
   // Photos keep existing with albumId null (FK set null)

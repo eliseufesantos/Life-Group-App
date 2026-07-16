@@ -11,6 +11,9 @@ type Executor =
 /** Chave do advisory lock que serializa a criação de avisos de aniversário. */
 const BIRTHDAY_LOCK = 428_518;
 
+/** Namespace do advisory lock por registro (avisos de pendência). */
+const REGISTRO_AVISO_LOCK_NS = 428_519;
+
 const SAO_PAULO_TZ = "America/Sao_Paulo";
 
 /** Format a Date as YYYY-MM-DD in the America/Sao_Paulo timezone. */
@@ -150,29 +153,41 @@ export async function notifyRegistroPendente(
   try {
     const title = `Registro do encontro de ${formatDateBr(registro.eventDate)} aguarda aprovação do líder`;
     const body = `O registro nº ${registro.seq} foi enviado por um auxiliar e aguarda aprovação.`;
-    const [existing] = await db
-      .select({ id: avisosTable.id })
-      .from(avisosTable)
-      .where(
-        and(
-          eq(avisosTable.origin, "registro_pending"),
-          eq(avisosTable.refId, registro.id),
-        ),
-      )
-      .limit(1);
-    if (existing) {
-      await db
-        .update(avisosTable)
-        .set({ title, body })
-        .where(eq(avisosTable.id, existing.id));
-    } else {
-      await postMuralAviso({
-        title,
-        body,
-        origin: "registro_pending",
-        refId: registro.id,
-      });
-    }
+    // A criação e a atualização (anexo de foto) de um mesmo registro chamam
+    // este helper em background (fire-and-forget), podendo rodar em paralelo
+    // para o mesmo refId. Um advisory lock por registro serializa o
+    // "checa → insere/atualiza", evitando avisos e notificações duplicados.
+    await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(${REGISTRO_AVISO_LOCK_NS}, ${registro.id})`,
+      );
+      const [existing] = await tx
+        .select({ id: avisosTable.id })
+        .from(avisosTable)
+        .where(
+          and(
+            eq(avisosTable.origin, "registro_pending"),
+            eq(avisosTable.refId, registro.id),
+          ),
+        )
+        .limit(1);
+      if (existing) {
+        await tx
+          .update(avisosTable)
+          .set({ title, body })
+          .where(eq(avisosTable.id, existing.id));
+      } else {
+        await postMuralAviso(
+          {
+            title,
+            body,
+            origin: "registro_pending",
+            refId: registro.id,
+          },
+          tx,
+        );
+      }
+    });
     if (!notifyLeaders) return;
     const leaders = await db
       .select({ id: usuariosTable.id })
