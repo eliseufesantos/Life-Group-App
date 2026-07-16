@@ -63,21 +63,34 @@ const BUILTIN_ACTIVITIES: Array<{ name: string; hasDuration: boolean }> = [
 
 /** Idempotently seed the 7 builtin activities on first use. */
 async function ensureBuiltinActivities(): Promise<void> {
+  // Fast path sem lock: quando já estão semeadas (quase sempre), evita a
+  // transação. O check+insert real roda serializado por advisory lock, senão
+  // duas primeiras requisições concorrentes inseririam as builtin em duplicata.
   const existing = await db
     .select({ name: atividadesCatalogoTable.name })
     .from(atividadesCatalogoTable)
     .where(eq(atividadesCatalogoTable.builtin, true));
   const existingNames = new Set(existing.map((e) => e.name));
-  const missing = BUILTIN_ACTIVITIES.filter((a) => !existingNames.has(a.name));
-  if (missing.length === 0) return;
-  await db.insert(atividadesCatalogoTable).values(
-    missing.map((a) => ({
-      name: a.name,
-      hasDuration: a.hasDuration,
-      builtin: true,
-      active: true,
-    })),
-  );
+  if (BUILTIN_ACTIVITIES.every((a) => existingNames.has(a.name))) return;
+
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${ACTIVITY_SEED_LOCK})`);
+    const seeded = await tx
+      .select({ name: atividadesCatalogoTable.name })
+      .from(atividadesCatalogoTable)
+      .where(eq(atividadesCatalogoTable.builtin, true));
+    const seededNames = new Set(seeded.map((e) => e.name));
+    const missing = BUILTIN_ACTIVITIES.filter((a) => !seededNames.has(a.name));
+    if (missing.length === 0) return;
+    await tx.insert(atividadesCatalogoTable).values(
+      missing.map((a) => ({
+        name: a.name,
+        hasDuration: a.hasDuration,
+        builtin: true,
+        active: true,
+      })),
+    );
+  });
 }
 
 router.get(
@@ -294,6 +307,9 @@ const ITEM_CAMPAIGN_TYPES = ["items", "both"] as const;
 
 /** Chave do advisory lock que serializa a numeração sequencial do registro. */
 const REGISTRO_SEQ_LOCK = 428_517;
+
+/** Chave do advisory lock que serializa o seed das atividades builtin. */
+const ACTIVITY_SEED_LOCK = 428_520;
 
 /**
  * Campanha ativa que aceita itens. O filtro por tipo importa: a tela de

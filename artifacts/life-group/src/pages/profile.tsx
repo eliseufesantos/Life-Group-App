@@ -8,7 +8,10 @@ import {
   useRequestUploadUrl,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import {
   Users,
@@ -70,6 +73,27 @@ export default function Profile() {
   const requestUploadUrl = useRequestUploadUrl();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Data de nascimento (self-service): o próprio membro define/edita, enviando
+  // só birthDate no PATCH do próprio id — permitido para qualquer papel.
+  const [bdEditing, setBdEditing] = useState(false);
+  const [bdDraft, setBdDraft] = useState("");
+  const handleSaveBirthDate = () => {
+    if (!user) return;
+    updateMember.mutate(
+      { id: user.id, data: { birthDate: bdDraft || null } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
+          setBdEditing(false);
+          toast({ title: "Data de nascimento atualizada" });
+        },
+        onError: () =>
+          toast({ variant: "destructive", title: "Erro ao salvar a data" }),
+      },
+    );
+  };
 
   // Upload da foto de perfil (self-service): presigned URL + PATCH no
   // próprio id enviando apenas avatarPath — permitido para qualquer papel.
@@ -179,12 +203,47 @@ export default function Profile() {
             </span>
           ))}
         </div>
-        {user.birthDate && (
-          <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+        {bdEditing ? (
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <Input
+              type="date"
+              value={bdDraft}
+              onChange={(e) => setBdDraft(e.target.value)}
+              className="h-9 w-auto"
+              aria-label="Data de nascimento"
+            />
+            <Button size="sm" onClick={handleSaveBirthDate} disabled={updateMember.isPending}>
+              Salvar
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setBdEditing(false)}>
+              Cancelar
+            </Button>
+          </div>
+        ) : user.birthDate ? (
+          <button
+            type="button"
+            onClick={() => {
+              setBdDraft(user.birthDate ?? "");
+              setBdEditing(true);
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
             <Cake className="h-3.5 w-3.5" />
             {formatBirthday(user.birthDate)}
             {age !== null && <span>· {age} anos</span>}
-          </p>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setBdDraft("");
+              setBdEditing(true);
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary transition-colors hover:underline"
+          >
+            <Cake className="h-3.5 w-3.5" />
+            Adicionar data de nascimento
+          </button>
         )}
         {user.formationTrack && (
           <p className="mt-3 text-xs text-muted-foreground">

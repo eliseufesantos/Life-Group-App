@@ -75,7 +75,10 @@ router.get("/members", requireAuth, async (req: AuthedRequest, res): Promise<voi
     return true;
   });
 
-  res.json(filtered.map((u) => toMember(u, privileged)));
+  // O próprio membro sempre vê os próprios dados restritos (incl. nascimento).
+  res.json(
+    filtered.map((u) => toMember(u, privileged || u.id === req.user!.id)),
+  );
 });
 
 router.get("/members/stats", requireAuth, async (_req, res): Promise<void> => {
@@ -178,7 +181,8 @@ router.get("/members/:id", requireAuth, async (req: AuthedRequest, res): Promise
   }
   const privileged = isPrivileged(req.user);
   const { disciples, disciplers } = await loadDiscipleships(member.id);
-  res.json({ ...toMember(member, privileged), disciples, disciplers });
+  const canSeePrivate = privileged || member.id === req.user!.id;
+  res.json({ ...toMember(member, canSeePrivate), disciples, disciplers });
 });
 
 router.patch(
@@ -191,14 +195,17 @@ router.patch(
       return;
     }
     // Self-service exception: a non-privileged user may update ONLY their own
-    // profile photo — the body must contain exactly the avatarPath field.
-    // Any other field (or someone else's id) keeps the 403 as before.
+    // profile photo and/or birth date. The body must contain only fields from
+    // the self-editable allowlist; anything else (or someone else's id) keeps
+    // the 403 as before.
+    const SELF_EDITABLE_FIELDS = new Set(["avatarPath", "birthDate"]);
     if (!isPrivileged(req.user)) {
       const isSelf = req.user!.id === params.data.id;
       const bodyKeys = Object.keys((req.body ?? {}) as Record<string, unknown>);
-      const onlyAvatarPath =
-        bodyKeys.length === 1 && bodyKeys[0] === "avatarPath";
-      if (!isSelf || !onlyAvatarPath) {
+      const onlySelfEditable =
+        bodyKeys.length > 0 &&
+        bodyKeys.every((k) => SELF_EDITABLE_FIELDS.has(k));
+      if (!isSelf || !onlySelfEditable) {
         res.status(403).json({ error: "Acesso restrito a lideres e auxiliares" });
         return;
       }

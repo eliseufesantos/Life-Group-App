@@ -23,7 +23,10 @@ export function toMember(u: Usuario, privileged: boolean) {
     role: (u.role ?? null) as "leader" | "auxiliary" | "member" | null,
     categories: (u.categories ?? []) as ("host" | "discipler" | "disciple")[],
     formationTrack: privileged ? u.formationTrack : null,
-    birthDate: u.birthDate,
+    // Data de nascimento é dado pessoal restrito (como contato/trilha): a data
+    // exata só vai para líder/auxiliar e para o próprio membro. A função social
+    // do aniversário é coberta pelo aviso automático no mural, no dia.
+    birthDate: privileged ? u.birthDate : null,
     avatarPath: u.avatarPath,
     invitedBy: u.invitedBy,
     joinedAt: u.joinedAt ? u.joinedAt.toISOString() : null,
