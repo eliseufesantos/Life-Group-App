@@ -53,14 +53,34 @@ export interface CurrentUser {
   categories: CurrentUserCategoriesItem[];
   /** @nullable */
   formationTrack?: string | null;
+  /**
+     * Birth date (YYYY-MM-DD)
+     * @nullable
+     */
+  birthDate: string | null;
+  /**
+     * Object path of the profile picture
+     * @nullable
+     */
+  avatarPath: string | null;
 }
 
 export interface Invite {
   id: number;
   code: string;
+  /** Name of the invited person */
+  name: string;
   createdAt: string;
   expiresAt: string;
   used: boolean;
+}
+
+export interface InviteInput {
+  /**
+     * Name of the invited person
+     * @minLength 1
+     */
+  name: string;
 }
 
 export interface InviteValidation {
@@ -130,6 +150,16 @@ export interface Member {
   categories: MemberCategoriesItem[];
   /** @nullable */
   formationTrack?: string | null;
+  /**
+     * Birth date (YYYY-MM-DD)
+     * @nullable
+     */
+  birthDate: string | null;
+  /**
+     * Object path of the profile picture
+     * @nullable
+     */
+  avatarPath: string | null;
   /** @nullable */
   invitedBy?: string | null;
   /** @nullable */
@@ -175,12 +205,29 @@ export const DiscipleshipStatus = {
   completed: 'completed',
 } as const;
 
+/**
+ * Each side is either an internal member (id set) or an external person
+ * from another Life Group (external name set). At least one side is
+ * internal. disciplerName/discipleName always carry the display name.
+ */
 export interface Discipleship {
   id: number;
-  disciplerId: number;
+  /** @nullable */
+  disciplerId: number | null;
   disciplerName: string;
-  discipleId: number;
+  /**
+     * Free-text name when the discipler is from another Life Group
+     * @nullable
+     */
+  externalDisciplerName: string | null;
+  /** @nullable */
+  discipleId: number | null;
   discipleName: string;
+  /**
+     * Free-text name when the disciple is from another Life Group
+     * @nullable
+     */
+  externalDiscipleName: string | null;
   startDate: string;
   status: DiscipleshipStatus;
   /** @nullable */
@@ -200,6 +247,16 @@ export interface MemberDetail {
   categories: MemberDetailCategoriesItem[];
   /** @nullable */
   formationTrack?: string | null;
+  /**
+     * Birth date (YYYY-MM-DD)
+     * @nullable
+     */
+  birthDate: string | null;
+  /**
+     * Object path of the profile picture
+     * @nullable
+     */
+  avatarPath: string | null;
   /** @nullable */
   invitedBy?: string | null;
   /** @nullable */
@@ -246,6 +303,16 @@ export interface MemberUpdate {
   role?: MemberUpdateRole;
   categories?: MemberUpdateCategoriesItem[];
   formationTrack?: string;
+  /**
+     * Birth date (YYYY-MM-DD), null clears it
+     * @nullable
+     */
+  birthDate?: string | null;
+  /**
+     * Object path of the profile picture, null clears it
+     * @nullable
+     */
+  avatarPath?: string | null;
   active?: boolean;
 }
 
@@ -274,9 +341,17 @@ export interface MemberStats {
   conversionRate: number;
 }
 
+/**
+ * For each side provide exactly one of the internal id or the external
+ * name. At least one side must be an internal member.
+ */
 export interface DiscipleshipInput {
-  disciplerId: number;
-  discipleId: number;
+  disciplerId?: number;
+  /** @minLength 1 */
+  externalDisciplerName?: string;
+  discipleId?: number;
+  /** @minLength 1 */
+  externalDiscipleName?: string;
   notes?: string;
 }
 
@@ -289,7 +364,20 @@ export const DiscipleshipUpdateStatus = {
   completed: 'completed',
 } as const;
 
+/**
+ * Sides may be reassigned; when changing a side, provide exactly one of
+ * the internal id or the external name for it. At least one side must
+ * remain an internal member.
+ */
 export interface DiscipleshipUpdate {
+  /** @nullable */
+  disciplerId?: number | null;
+  /** @nullable */
+  externalDisciplerName?: string | null;
+  /** @nullable */
+  discipleId?: number | null;
+  /** @nullable */
+  externalDiscipleName?: string | null;
   status?: DiscipleshipUpdateStatus;
   notes?: string;
 }
@@ -399,13 +487,29 @@ export interface OccurrenceOverrideInput {
   canceled?: boolean;
 }
 
+/**
+ * Whether the aviso was posted manually or by an automation
+ */
+export type AnnouncementOrigin = typeof AnnouncementOrigin[keyof typeof AnnouncementOrigin];
+
+
+export const AnnouncementOrigin = {
+  manual: 'manual',
+  birthday: 'birthday',
+  campaign: 'campaign',
+  registro_pending: 'registro_pending',
+} as const;
+
 export interface Announcement {
   id: number;
   title: string;
   body: string;
+  /** Whether the aviso was posted manually or by an automation */
+  origin: AnnouncementOrigin;
   /** @nullable */
   authorName: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface AnnouncementInput {
@@ -415,16 +519,38 @@ export interface AnnouncementInput {
   body: string;
 }
 
+export interface AnnouncementUpdate {
+  /** @minLength 1 */
+  title?: string;
+  /** @minLength 1 */
+  body?: string;
+}
+
+export interface PollVoter {
+  id: number;
+  name: string;
+  /** @nullable */
+  avatarPath: string | null;
+}
+
 export interface PollOption {
   id: number;
   text: string;
   votes: number;
+  /** Who voted for this option. Always empty when the poll is anonymous. */
+  voters: PollVoter[];
 }
 
 export interface Poll {
   id: number;
   question: string;
   closed: boolean;
+  /**
+     * Expiration date-time. Expired polls are hard-deleted on listing.
+     * @nullable
+     */
+  endsAt: string | null;
+  anonymous: boolean;
   options: PollOption[];
   /**
      * Option id the current user voted for
@@ -445,6 +571,9 @@ export interface PollInput {
      * @items.minLength 1
      */
   options: string[];
+  /** Optional expiration. After this instant the poll is deleted for good. */
+  endsAt?: string;
+  anonymous?: boolean;
 }
 
 export interface VoteInput {
@@ -482,14 +611,35 @@ export interface TaskInput {
   title: string;
   /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   weekStart: string;
-  assignedTo?: number;
+  /** Tasks always belong to a specific person */
+  assignedTo: number;
 }
+
+export type PhotoSourceType = typeof PhotoSourceType[keyof typeof PhotoSourceType];
+
+
+export const PhotoSourceType = {
+  upload: 'upload',
+  drive: 'drive',
+} as const;
 
 export interface Photo {
   id: number;
-  objectPath: string;
-  /** Relative serving URL for the photo */
+  /**
+     * Storage path for uploaded photos, null for Drive photos
+     * @nullable
+     */
+  objectPath: string | null;
+  /** Serving URL (relative for uploads, absolute for Drive photos) */
   url: string;
+  sourceType: PhotoSourceType;
+  /**
+     * Google Drive URL for drive photos
+     * @nullable
+     */
+  externalUrl: string | null;
+  /** @nullable */
+  albumId: number | null;
   /** @nullable */
   caption: string | null;
   /** @nullable */
@@ -499,10 +649,225 @@ export interface Photo {
   createdAt: string;
 }
 
+export type PhotoInputSourceType = typeof PhotoInputSourceType[keyof typeof PhotoInputSourceType];
+
+
+export const PhotoInputSourceType = {
+  upload: 'upload',
+  drive: 'drive',
+} as const;
+
+/**
+ * sourceType 'upload' (default) requires objectPath; sourceType 'drive'
+ * requires externalUrl (https).
+ */
 export interface PhotoInput {
   /** @minLength 1 */
-  objectPath: string;
+  objectPath?: string;
+  sourceType?: PhotoInputSourceType;
+  externalUrl?: string;
+  albumId?: number;
   caption?: string;
+}
+
+export interface Album {
+  id: number;
+  title: string;
+  /**
+     * Linked calendar event, if any
+     * @nullable
+     */
+  eventId: number | null;
+  /** @nullable */
+  eventTitle: string | null;
+  /**
+     * Link to a shared Google Drive folder
+     * @nullable
+     */
+  driveUrl: string | null;
+  photoCount: number;
+  /** @nullable */
+  createdBy: number | null;
+  /** @nullable */
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface AlbumInput {
+  /** @minLength 1 */
+  title: string;
+  eventId?: number;
+  driveUrl?: string;
+}
+
+export interface AlbumUpdate {
+  /** @minLength 1 */
+  title?: string;
+  /** @nullable */
+  eventId?: number | null;
+  /** @nullable */
+  driveUrl?: string | null;
+}
+
+export type RegistroSummaryStatus = typeof RegistroSummaryStatus[keyof typeof RegistroSummaryStatus];
+
+
+export const RegistroSummaryStatus = {
+  pending: 'pending',
+  published: 'published',
+} as const;
+
+export interface RegistroSummary {
+  id: number;
+  /** Sequential meeting number */
+  seq: number;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  eventDate: string;
+  status: RegistroSummaryStatus;
+  presentCount: number;
+  /** @nullable */
+  createdByName: string | null;
+}
+
+export type RegistroAttendeeStatus = typeof RegistroAttendeeStatus[keyof typeof RegistroAttendeeStatus];
+
+
+export const RegistroAttendeeStatus = {
+  member: 'member',
+  guest: 'guest',
+} as const;
+
+export interface RegistroAttendee {
+  userId: number;
+  name: string;
+  status: RegistroAttendeeStatus;
+}
+
+export interface RegistroActivityEntry {
+  id: number;
+  /**
+     * Catalog activity id, null when the catalog entry was removed
+     * @nullable
+     */
+  atividadeId: number | null;
+  /** Snapshot of the activity name */
+  name: string;
+  /** @nullable */
+  responsavelId: number | null;
+  /** @nullable */
+  responsavelName: string | null;
+  /** @nullable */
+  durationMin: number | null;
+}
+
+export interface RegistroDonationItem {
+  id: number;
+  itemName: string;
+  quantity: number;
+}
+
+export interface RegistroAlbum {
+  id: number;
+  title: string;
+  /** @nullable */
+  driveUrl: string | null;
+}
+
+export type RegistroDetailStatus = typeof RegistroDetailStatus[keyof typeof RegistroDetailStatus];
+
+
+export const RegistroDetailStatus = {
+  pending: 'pending',
+  published: 'published',
+} as const;
+
+export interface RegistroDetail {
+  id: number;
+  seq: number;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  eventDate: string;
+  status: RegistroDetailStatus;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  createdByName: string | null;
+  /** @nullable */
+  approvedByName: string | null;
+  presentes: RegistroAttendee[];
+  atividades: RegistroActivityEntry[];
+  arrecadacao: RegistroDonationItem[];
+  album: RegistroAlbum | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RegistroNewGuest {
+  /** @minLength 1 */
+  name: string;
+  phone?: string;
+}
+
+export interface RegistroActivityInputEntry {
+  /** Catalog activity id, when picked from the catalog */
+  atividadeId?: number;
+  /**
+     * Activity name snapshot
+     * @minLength 1
+     */
+  name: string;
+  responsavelId?: number;
+  /** @minimum 1 */
+  durationMin?: number;
+}
+
+export interface RegistroDonationInputEntry {
+  /** @minLength 1 */
+  item: string;
+  /** @minimum 1 */
+  quantity: number;
+}
+
+export interface RegistroInput {
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  eventDate: string;
+  /** Ids of members/guests present */
+  presentes: number[];
+  /** New guests to create (status guest, no tags) and mark present */
+  novosConvidados?: RegistroNewGuest[];
+  atividades?: RegistroActivityInputEntry[];
+  albumId?: number;
+  /** Donated items, linked to the currently active campaign */
+  arrecadacao?: RegistroDonationInputEntry[];
+  notes?: string;
+}
+
+export interface RegistroUpdate {
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  eventDate?: string;
+  /** Replaces the attendance list when provided */
+  presentes?: number[];
+  novosConvidados?: RegistroNewGuest[];
+  /** Replaces the activity list when provided */
+  atividades?: RegistroActivityInputEntry[];
+  /** @nullable */
+  albumId?: number | null;
+  /** Replaces the donation entries of this record when provided */
+  arrecadacao?: RegistroDonationInputEntry[];
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface RegistroActivity {
+  id: number;
+  name: string;
+  hasDuration: boolean;
+  builtin: boolean;
+}
+
+export interface RegistroActivityInput {
+  /** @minLength 1 */
+  name: string;
+  hasDuration?: boolean;
 }
 
 export interface UploadUrlRequest {
@@ -601,6 +966,17 @@ export const CampaignUpdateType = {
   both: 'both',
 } as const;
 
+/**
+ * Setting active reopens a closed campaign
+ */
+export type CampaignUpdateStatus = typeof CampaignUpdateStatus[keyof typeof CampaignUpdateStatus];
+
+
+export const CampaignUpdateStatus = {
+  active: 'active',
+  closed: 'closed',
+} as const;
+
 export interface CampaignUpdate {
   /** @minLength 1 */
   title?: string;
@@ -612,6 +988,8 @@ export interface CampaignUpdate {
   endDate?: string | null;
   /** @nullable */
   externalLink?: string | null;
+  /** Setting active reopens a closed campaign */
+  status?: CampaignUpdateStatus;
 }
 
 /**

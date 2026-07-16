@@ -7,12 +7,29 @@
  */
 import type { DiscipleshipStatus } from './discipleshipStatus';
 
+/**
+ * Each side is either an internal member (id set) or an external person
+ * from another Life Group (external name set). At least one side is
+ * internal. disciplerName/discipleName always carry the display name.
+ */
 export interface Discipleship {
   id: number;
-  disciplerId: number;
+  /** @nullable */
+  disciplerId: number | null;
   disciplerName: string;
-  discipleId: number;
+  /**
+     * Free-text name when the discipler is from another Life Group
+     * @nullable
+     */
+  externalDisciplerName: string | null;
+  /** @nullable */
+  discipleId: number | null;
   discipleName: string;
+  /**
+     * Free-text name when the disciple is from another Life Group
+     * @nullable
+     */
+  externalDiscipleName: string | null;
   startDate: string;
   status: DiscipleshipStatus;
   /** @nullable */

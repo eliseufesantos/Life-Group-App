@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Settings, Plus, X, MapPin, AlignLeft, Trash2, Edit, CalendarClock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, ClipboardList, Settings, Plus, X, MapPin, AlignLeft, Trash2, Edit, CalendarClock } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -281,7 +282,7 @@ export default function Calendar() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-serif text-2xl font-extrabold tracking-tight text-foreground">Agenda</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Encontros e eventos da célula.</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Encontros e eventos do Life Group.</p>
         </div>
         <div className="flex items-center gap-2">
           {isLeader && (
@@ -439,6 +440,18 @@ export default function Calendar() {
             Nenhum evento neste dia.
           </div>
         )}
+
+        {/* Registro do encontro do Life Group (líder/auxiliar) */}
+        {isLeaderOrAux &&
+          selectedDayEvents.some((e) => e.type === "meeting" && !e.canceled) && (
+            <Link
+              href={`/registros/novo?date=${format(selectedDay, "yyyy-MM-dd")}`}
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full border border-primary/25 bg-accent px-4 py-2.5 text-sm font-bold text-primary transition-colors active:bg-primary/15"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Registro do encontro
+            </Link>
+          )}
       </section>
 
       {/* Recurrence Dialog */}
@@ -495,7 +508,7 @@ export default function Calendar() {
                   <FormItem>
                     <FormLabel>Local (Opcional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Endereço da célula" {...field} />
+                      <Input placeholder="Endereço do Life Group" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

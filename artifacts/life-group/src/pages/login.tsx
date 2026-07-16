@@ -51,7 +51,7 @@ export default function Login() {
             Bem-vindo(a)!
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Tudo da sua célula em um só lugar.
+            Tudo do seu Life Group em um só lugar.
           </p>
         </div>
 

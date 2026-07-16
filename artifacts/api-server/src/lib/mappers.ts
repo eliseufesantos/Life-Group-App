@@ -8,6 +8,8 @@ export function toCurrentUser(u: Usuario) {
     role: (u.role ?? "member") as "leader" | "auxiliary" | "member",
     categories: (u.categories ?? []) as ("host" | "discipler" | "disciple")[],
     formationTrack: u.formationTrack,
+    birthDate: u.birthDate,
+    avatarPath: u.avatarPath,
   };
 }
 
@@ -21,6 +23,11 @@ export function toMember(u: Usuario, privileged: boolean) {
     role: (u.role ?? null) as "leader" | "auxiliary" | "member" | null,
     categories: (u.categories ?? []) as ("host" | "discipler" | "disciple")[],
     formationTrack: privileged ? u.formationTrack : null,
+    // Data de nascimento é dado pessoal restrito (como contato/trilha): a data
+    // exata só vai para líder/auxiliar e para o próprio membro. A função social
+    // do aniversário é coberta pelo aviso automático no mural, no dia.
+    birthDate: privileged ? u.birthDate : null,
+    avatarPath: u.avatarPath,
     invitedBy: u.invitedBy,
     joinedAt: u.joinedAt ? u.joinedAt.toISOString() : null,
     active: u.active,
@@ -29,19 +36,30 @@ export function toMember(u: Usuario, privileged: boolean) {
 
 export interface DiscipleshipRow {
   rel: RelacaoDiscipulado;
-  disciplerName: string;
-  discipleName: string;
+  /** Resolved internal member names (empty map entries fall back to external names) */
+  names: Map<number, string>;
 }
 
 export function toDiscipleship(row: DiscipleshipRow) {
+  const { rel, names } = row;
+  const disciplerName =
+    rel.disciplerId !== null
+      ? (names.get(rel.disciplerId) ?? "")
+      : (rel.externalDisciplerName ?? "");
+  const discipleName =
+    rel.discipleId !== null
+      ? (names.get(rel.discipleId) ?? "")
+      : (rel.externalDiscipleName ?? "");
   return {
-    id: row.rel.id,
-    disciplerId: row.rel.disciplerId,
-    disciplerName: row.disciplerName,
-    discipleId: row.rel.discipleId,
-    discipleName: row.discipleName,
-    startDate: row.rel.startDate,
-    status: row.rel.status as "active" | "paused" | "completed",
-    notes: row.rel.notes,
+    id: rel.id,
+    disciplerId: rel.disciplerId,
+    disciplerName,
+    externalDisciplerName: rel.externalDisciplerName,
+    discipleId: rel.discipleId,
+    discipleName,
+    externalDiscipleName: rel.externalDiscipleName,
+    startDate: rel.startDate,
+    status: rel.status as "active" | "paused" | "completed",
+    notes: rel.notes,
   };
 }

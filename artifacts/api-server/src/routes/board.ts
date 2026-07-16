@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import {
   db,
   usuariosTable,
@@ -9,11 +9,19 @@ import {
   votosEnqueteTable,
   tarefasTable,
   fotosTable,
+  albunsTable,
+  eventosTable,
+  registrosEncontroTable,
+  type Album,
+  type Aviso,
   type Enquete,
+  type Foto,
   type Tarefa,
 } from "@workspace/db";
 import {
   CreateAnnouncementBody,
+  UpdateAnnouncementBody,
+  UpdateAnnouncementParams,
   DeleteAnnouncementParams,
   CreatePollBody,
   VotePollBody,
@@ -27,10 +35,16 @@ import {
   DeleteTaskParams,
   CreatePhotoBody,
   DeletePhotoParams,
+  CreateAlbumBody,
+  UpdateAlbumBody,
+  UpdateAlbumParams,
+  DeleteAlbumParams,
 } from "@workspace/api-zod";
 import { requireAuth, requirePrivileged, isPrivileged, type AuthedRequest } from "../lib/auth";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { isSafeHttpUrl } from "../lib/validation";
 import { notifyUsers } from "../lib/push";
+import { ensureBirthdayAvisos } from "../lib/automations";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -49,20 +63,30 @@ async function nameMap(ids: Array<number | null>): Promise<Map<number, string>> 
 
 // --- Avisos ---
 
+function avisoDto(a: Aviso, authorName: string | null): Record<string, unknown> {
+  return {
+    id: a.id,
+    title: a.title,
+    body: a.body,
+    origin: a.origin,
+    authorName,
+    createdAt: a.createdAt.toISOString(),
+    updatedAt: a.updatedAt.toISOString(),
+  };
+}
+
 router.get("/board/announcements", requireAuth, async (_req, res): Promise<void> => {
+  // Lazy check: post today's birthday avisos before listing
+  await ensureBirthdayAvisos();
   const avisos = await db
     .select()
     .from(avisosTable)
     .orderBy(desc(avisosTable.createdAt));
   const names = await nameMap(avisos.map((a) => a.createdBy));
   res.json(
-    avisos.map((a) => ({
-      id: a.id,
-      title: a.title,
-      body: a.body,
-      authorName: a.createdBy !== null ? (names.get(a.createdBy) ?? null) : null,
-      createdAt: a.createdAt.toISOString(),
-    })),
+    avisos.map((a) =>
+      avisoDto(a, a.createdBy !== null ? (names.get(a.createdBy) ?? null) : null),
+    ),
   );
 });
 
@@ -92,13 +116,53 @@ router.post(
       body: aviso.title,
       link: "/mural",
     });
-    res.status(201).json({
-      id: aviso.id,
-      title: aviso.title,
-      body: aviso.body,
-      authorName: req.user!.name,
-      createdAt: aviso.createdAt.toISOString(),
-    });
+    res.status(201).json(avisoDto(aviso, req.user!.name));
+  },
+);
+
+router.patch(
+  "/board/announcements/:id",
+  requireAuth,
+  requirePrivileged,
+  async (req: AuthedRequest, res): Promise<void> => {
+    const params = UpdateAnnouncementParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const parsed = UpdateAnnouncementBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const update: Record<string, unknown> = {};
+    if (parsed.data.title !== undefined) update.title = parsed.data.title;
+    if (parsed.data.body !== undefined) update.body = parsed.data.body;
+
+    let aviso: Aviso | undefined;
+    if (Object.keys(update).length === 0) {
+      [aviso] = await db
+        .select()
+        .from(avisosTable)
+        .where(eq(avisosTable.id, params.data.id));
+    } else {
+      [aviso] = await db
+        .update(avisosTable)
+        .set(update)
+        .where(eq(avisosTable.id, params.data.id))
+        .returning();
+    }
+    if (!aviso) {
+      res.status(404).json({ error: "Aviso não encontrado" });
+      return;
+    }
+    const names = await nameMap([aviso.createdBy]);
+    res.json(
+      avisoDto(
+        aviso,
+        aviso.createdBy !== null ? (names.get(aviso.createdBy) ?? null) : null,
+      ),
+    );
   },
 );
 
@@ -119,11 +183,19 @@ router.delete(
 
 // --- Enquetes ---
 
+interface PollVoterDto {
+  id: number;
+  name: string;
+  avatarPath: string | null;
+}
+
 interface PollDto {
   id: number;
   question: string;
   closed: boolean;
-  options: Array<{ id: number; text: string; votes: number }>;
+  endsAt: string | null;
+  anonymous: boolean;
+  options: Array<{ id: number; text: string; votes: number; voters: PollVoterDto[] }>;
   myVote: number | null;
   totalVotes: number;
   authorName: string | null;
@@ -144,6 +216,20 @@ async function buildPolls(polls: Enquete[], userId: number): Promise<PollDto[]> 
     .where(inArray(votosEnqueteTable.enqueteId, pollIds));
   const names = await nameMap(polls.map((p) => p.createdBy));
 
+  const voters = new Map<number, PollVoterDto>();
+  const voterIds = Array.from(new Set(votes.map((v) => v.userId)));
+  if (voterIds.length > 0) {
+    const people = await db
+      .select({
+        id: usuariosTable.id,
+        name: usuariosTable.name,
+        avatarPath: usuariosTable.avatarPath,
+      })
+      .from(usuariosTable)
+      .where(inArray(usuariosTable.id, voterIds));
+    for (const p of people) voters.set(p.id, p);
+  }
+
   return polls.map((poll) => {
     const pollOptions = options.filter((o) => o.enqueteId === poll.id);
     const pollVotes = votes.filter((v) => v.enqueteId === poll.id);
@@ -152,11 +238,22 @@ async function buildPolls(polls: Enquete[], userId: number): Promise<PollDto[]> 
       id: poll.id,
       question: poll.question,
       closed: poll.closed,
-      options: pollOptions.map((o) => ({
-        id: o.id,
-        text: o.text,
-        votes: pollVotes.filter((v) => v.opcaoId === o.id).length,
-      })),
+      endsAt: poll.endsAt ? poll.endsAt.toISOString() : null,
+      anonymous: poll.anonymous,
+      options: pollOptions.map((o) => {
+        const optionVotes = pollVotes.filter((v) => v.opcaoId === o.id);
+        return {
+          id: o.id,
+          text: o.text,
+          votes: optionVotes.length,
+          // Anonymous polls only expose counts, never who voted
+          voters: poll.anonymous
+            ? []
+            : optionVotes
+                .map((v) => voters.get(v.userId))
+                .filter((p): p is PollVoterDto => p !== undefined),
+        };
+      }),
       myVote,
       totalVotes: pollVotes.length,
       authorName:
@@ -167,6 +264,8 @@ async function buildPolls(polls: Enquete[], userId: number): Promise<PollDto[]> 
 }
 
 router.get("/board/polls", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  // Expired polls are removed for good (product decision: no history kept)
+  await db.delete(enquetesTable).where(lt(enquetesTable.endsAt, new Date()));
   const polls = await db
     .select()
     .from(enquetesTable)
@@ -184,13 +283,30 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const [poll] = await db
-      .insert(enquetesTable)
-      .values({ question: parsed.data.question, createdBy: req.user!.id })
-      .returning();
-    await db
-      .insert(opcoesEnqueteTable)
-      .values(parsed.data.options.map((text) => ({ enqueteId: poll.id, text })));
+    if (parsed.data.endsAt && parsed.data.endsAt.getTime() <= Date.now()) {
+      res.status(400).json({ error: "O término deve ser no futuro" });
+      return;
+    }
+    // Enquete + opções numa transação: sem isso, uma falha após o primeiro
+    // insert deixaria uma enquete sem opções, que o GET ainda listaria
+    // (buildPolls tolera lista vazia) — uma enquete quebrada e visível.
+    const poll = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(enquetesTable)
+        .values({
+          question: parsed.data.question,
+          endsAt: parsed.data.endsAt ?? null,
+          anonymous: parsed.data.anonymous ?? false,
+          createdBy: req.user!.id,
+        })
+        .returning();
+      await tx
+        .insert(opcoesEnqueteTable)
+        .values(
+          parsed.data.options.map((text) => ({ enqueteId: created.id, text })),
+        );
+      return created;
+    });
     const [dto] = await buildPolls([poll], req.user!.id);
     res.status(201).json(dto);
   },
@@ -215,7 +331,7 @@ router.post("/board/polls/:id/vote", requireAuth, async (req: AuthedRequest, res
     res.status(404).json({ error: "Enquete não encontrada" });
     return;
   }
-  if (poll.closed) {
+  if (poll.closed || (poll.endsAt !== null && poll.endsAt.getTime() <= Date.now())) {
     res.status(400).json({ error: "Enquete encerrada" });
     return;
   }
@@ -344,23 +460,37 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+    const [assignee] = await db
+      .select({ id: usuariosTable.id, status: usuariosTable.status })
+      .from(usuariosTable)
+      .where(eq(usuariosTable.id, parsed.data.assignedTo));
+    if (!assignee) {
+      res.status(400).json({ error: "Responsável não encontrado" });
+      return;
+    }
+    if (assignee.status === "guest") {
+      res
+        .status(400)
+        .json({ error: "Convidado não pode receber tarefas" });
+      return;
+    }
     const status = req.user!.role === "leader" ? "approved" : "proposed";
     const [task] = await db
       .insert(tarefasTable)
       .values({
         title: parsed.data.title,
         weekStart: parsed.data.weekStart,
-        assignedTo: parsed.data.assignedTo ?? null,
+        assignedTo: parsed.data.assignedTo,
         status,
         proposedBy: req.user!.id,
       })
       .returning();
-    if (task.assignedTo !== null && task.status === "approved") {
+    if (task.assignedTo !== null) {
       void notifyUsers({
         userIds: [task.assignedTo],
         excludeUserId: req.user!.id,
         type: "task",
-        title: "Nova tarefa atribuída a você",
+        title: "Você foi alocado na tarefa",
         body: task.title,
         link: "/mural",
       });
@@ -452,6 +582,21 @@ router.delete(
 
 // --- Fotos ---
 
+function photoDto(f: Foto, uploaderName: string | null): Record<string, unknown> {
+  return {
+    id: f.id,
+    objectPath: f.objectPath,
+    url: f.objectPath ? `/api/storage${f.objectPath}` : (f.externalUrl ?? ""),
+    sourceType: f.sourceType,
+    externalUrl: f.externalUrl,
+    albumId: f.albumId,
+    caption: f.caption,
+    uploaderName,
+    uploadedBy: f.uploadedBy,
+    createdAt: f.createdAt.toISOString(),
+  };
+}
+
 router.get("/board/photos", requireAuth, async (_req, res): Promise<void> => {
   const fotos = await db
     .select()
@@ -459,16 +604,9 @@ router.get("/board/photos", requireAuth, async (_req, res): Promise<void> => {
     .orderBy(desc(fotosTable.createdAt));
   const names = await nameMap(fotos.map((f) => f.uploadedBy));
   res.json(
-    fotos.map((f) => ({
-      id: f.id,
-      objectPath: f.objectPath,
-      url: `/api/storage${f.objectPath}`,
-      caption: f.caption,
-      uploaderName:
-        f.uploadedBy !== null ? (names.get(f.uploadedBy) ?? null) : null,
-      uploadedBy: f.uploadedBy,
-      createdAt: f.createdAt.toISOString(),
-    })),
+    fotos.map((f) =>
+      photoDto(f, f.uploadedBy !== null ? (names.get(f.uploadedBy) ?? null) : null),
+    ),
   );
 });
 
@@ -478,37 +616,63 @@ router.post("/board/photos", requireAuth, async (req: AuthedRequest, res): Promi
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  if (!parsed.data.objectPath.startsWith("/objects/")) {
-    res.status(400).json({ error: "Caminho de objeto inválido" });
-    return;
+  const { sourceType } = parsed.data;
+  let objectPath: string | null = null;
+  let externalUrl: string | null = null;
+
+  if (sourceType === "drive") {
+    if (!parsed.data.externalUrl || !parsed.data.externalUrl.startsWith("https://")) {
+      res.status(400).json({
+        error: "Fotos do Drive exigem um link https válido (externalUrl)",
+      });
+      return;
+    }
+    externalUrl = parsed.data.externalUrl;
+  } else {
+    if (!parsed.data.objectPath) {
+      res.status(400).json({ error: "Fotos enviadas exigem objectPath" });
+      return;
+    }
+    if (!parsed.data.objectPath.startsWith("/objects/")) {
+      res.status(400).json({ error: "Caminho de objeto inválido" });
+      return;
+    }
+    try {
+      await objectStorageService.trySetObjectEntityAclPolicy(parsed.data.objectPath, {
+        owner: String(req.user!.id),
+        visibility: "public",
+      });
+    } catch (error) {
+      req.log.error({ err: error }, "Falha ao definir ACL da foto");
+      res.status(400).json({ error: "Objeto não encontrado no armazenamento" });
+      return;
+    }
+    objectPath = parsed.data.objectPath;
   }
-  try {
-    await objectStorageService.trySetObjectEntityAclPolicy(parsed.data.objectPath, {
-      owner: String(req.user!.id),
-      visibility: "public",
-    });
-  } catch (error) {
-    req.log.error({ err: error }, "Falha ao definir ACL da foto");
-    res.status(400).json({ error: "Objeto não encontrado no armazenamento" });
-    return;
+
+  if (parsed.data.albumId !== undefined) {
+    const [album] = await db
+      .select({ id: albunsTable.id })
+      .from(albunsTable)
+      .where(eq(albunsTable.id, parsed.data.albumId));
+    if (!album) {
+      res.status(400).json({ error: "Álbum não encontrado" });
+      return;
+    }
   }
+
   const [foto] = await db
     .insert(fotosTable)
     .values({
-      objectPath: parsed.data.objectPath,
+      objectPath,
+      sourceType,
+      externalUrl,
+      albumId: parsed.data.albumId ?? null,
       caption: parsed.data.caption ?? null,
       uploadedBy: req.user!.id,
     })
     .returning();
-  res.status(201).json({
-    id: foto.id,
-    objectPath: foto.objectPath,
-    url: `/api/storage${foto.objectPath}`,
-    caption: foto.caption,
-    uploaderName: req.user!.name,
-    uploadedBy: foto.uploadedBy,
-    createdAt: foto.createdAt.toISOString(),
-  });
+  res.status(201).json(photoDto(foto, req.user!.name));
 });
 
 router.delete("/board/photos/:id", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
@@ -530,6 +694,230 @@ router.delete("/board/photos/:id", requireAuth, async (req: AuthedRequest, res):
     return;
   }
   await db.delete(fotosTable).where(eq(fotosTable.id, foto.id));
+  res.json({ ok: true });
+});
+
+// --- Álbuns ---
+
+function albumDto(
+  album: Album,
+  eventTitle: string | null,
+  photoCount: number,
+  createdByName: string | null,
+): Record<string, unknown> {
+  return {
+    id: album.id,
+    title: album.title,
+    eventId: album.eventoId,
+    eventTitle,
+    driveUrl: album.driveUrl,
+    photoCount,
+    createdBy: album.createdBy,
+    createdByName,
+    createdAt: album.createdAt.toISOString(),
+  };
+}
+
+async function albumDtoById(album: Album): Promise<Record<string, unknown>> {
+  let eventTitle: string | null = null;
+  if (album.eventoId !== null) {
+    const [event] = await db
+      .select({ title: eventosTable.title })
+      .from(eventosTable)
+      .where(eq(eventosTable.id, album.eventoId));
+    eventTitle = event?.title ?? null;
+  }
+  const [count] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(fotosTable)
+    .where(eq(fotosTable.albumId, album.id));
+  const names = await nameMap([album.createdBy]);
+  return albumDto(
+    album,
+    eventTitle,
+    count?.count ?? 0,
+    album.createdBy !== null ? (names.get(album.createdBy) ?? null) : null,
+  );
+}
+
+router.get("/board/albums", requireAuth, async (_req, res): Promise<void> => {
+  const albums = await db
+    .select()
+    .from(albunsTable)
+    .orderBy(desc(albunsTable.createdAt));
+
+  const albumIds = albums.map((a) => a.id);
+  const counts = new Map<number, number>();
+  if (albumIds.length > 0) {
+    const rows = await db
+      .select({
+        albumId: fotosTable.albumId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(fotosTable)
+      .where(inArray(fotosTable.albumId, albumIds))
+      .groupBy(fotosTable.albumId);
+    for (const r of rows) {
+      if (r.albumId !== null) counts.set(r.albumId, r.count);
+    }
+  }
+
+  const eventIds = Array.from(
+    new Set(
+      albums.map((a) => a.eventoId).filter((id): id is number => id !== null),
+    ),
+  );
+  const eventTitles = new Map<number, string | null>();
+  if (eventIds.length > 0) {
+    const rows = await db
+      .select({ id: eventosTable.id, title: eventosTable.title })
+      .from(eventosTable)
+      .where(inArray(eventosTable.id, eventIds));
+    for (const r of rows) eventTitles.set(r.id, r.title);
+  }
+
+  const names = await nameMap(albums.map((a) => a.createdBy));
+  res.json(
+    albums.map((a) =>
+      albumDto(
+        a,
+        a.eventoId !== null ? (eventTitles.get(a.eventoId) ?? null) : null,
+        counts.get(a.id) ?? 0,
+        a.createdBy !== null ? (names.get(a.createdBy) ?? null) : null,
+      ),
+    ),
+  );
+});
+
+router.post("/board/albums", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const parsed = CreateAlbumBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  if (
+    parsed.data.driveUrl != null &&
+    !isSafeHttpUrl(parsed.data.driveUrl)
+  ) {
+    res.status(400).json({ error: "URL do Drive inválida" });
+    return;
+  }
+  if (parsed.data.eventId !== undefined) {
+    const [event] = await db
+      .select({ id: eventosTable.id })
+      .from(eventosTable)
+      .where(eq(eventosTable.id, parsed.data.eventId));
+    if (!event) {
+      res.status(400).json({ error: "Evento não encontrado" });
+      return;
+    }
+  }
+  const [album] = await db
+    .insert(albunsTable)
+    .values({
+      title: parsed.data.title,
+      eventoId: parsed.data.eventId ?? null,
+      driveUrl: parsed.data.driveUrl ?? null,
+      createdBy: req.user!.id,
+    })
+    .returning();
+  res.status(201).json(await albumDtoById(album));
+});
+
+router.patch("/board/albums/:id", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const params = UpdateAlbumParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const parsed = UpdateAlbumBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [existing] = await db
+    .select()
+    .from(albunsTable)
+    .where(eq(albunsTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Álbum não encontrado" });
+    return;
+  }
+  if (!isPrivileged(req.user) && existing.createdBy !== req.user!.id) {
+    res.status(403).json({ error: "Sem permissão para editar este álbum" });
+    return;
+  }
+  const update: Record<string, unknown> = {};
+  if (parsed.data.title !== undefined) update.title = parsed.data.title;
+  if (parsed.data.eventId !== undefined) {
+    if (parsed.data.eventId !== null) {
+      const [event] = await db
+        .select({ id: eventosTable.id })
+        .from(eventosTable)
+        .where(eq(eventosTable.id, parsed.data.eventId));
+      if (!event) {
+        res.status(400).json({ error: "Evento não encontrado" });
+        return;
+      }
+    }
+    update.eventoId = parsed.data.eventId;
+  }
+  if (parsed.data.driveUrl !== undefined) {
+    if (
+      parsed.data.driveUrl != null &&
+      !isSafeHttpUrl(parsed.data.driveUrl)
+    ) {
+      res.status(400).json({ error: "URL do Drive inválida" });
+      return;
+    }
+    update.driveUrl = parsed.data.driveUrl;
+  }
+
+  let album = existing;
+  if (Object.keys(update).length > 0) {
+    [album] = await db
+      .update(albunsTable)
+      .set(update)
+      .where(eq(albunsTable.id, existing.id))
+      .returning();
+  }
+  res.json(await albumDtoById(album));
+});
+
+router.delete("/board/albums/:id", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const params = DeleteAlbumParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [album] = await db
+    .select()
+    .from(albunsTable)
+    .where(eq(albunsTable.id, params.data.id));
+  if (!album) {
+    res.status(404).json({ error: "Álbum não encontrado" });
+    return;
+  }
+  if (!isPrivileged(req.user) && album.createdBy !== req.user!.id) {
+    res.status(403).json({ error: "Sem permissão para excluir este álbum" });
+    return;
+  }
+  // Um álbum usado como "foto do dia" de um registro não pode ser apagado às
+  // cegas: a FK é `set null` e o detalhe do registro só carrega fotos via
+  // `registro.album`, então apagar deixaria o registro sem foto silenciosamente.
+  const [linked] = await db
+    .select({ id: registrosEncontroTable.id, seq: registrosEncontroTable.seq })
+    .from(registrosEncontroTable)
+    .where(eq(registrosEncontroTable.albumId, album.id))
+    .limit(1);
+  if (linked) {
+    res.status(409).json({
+      error: `Álbum vinculado ao registro Life Group ${linked.seq}. Desvincule-o do registro antes de excluir.`,
+    });
+    return;
+  }
+  // Photos keep existing with albumId null (FK set null)
+  await db.delete(albunsTable).where(eq(albunsTable.id, album.id));
   res.json({ ok: true });
 });
 

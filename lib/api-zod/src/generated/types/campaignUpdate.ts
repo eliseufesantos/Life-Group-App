@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CampaignUpdateStatus } from './campaignUpdateStatus';
 import type { CampaignUpdateType } from './campaignUpdateType';
 
 export interface CampaignUpdate {
@@ -18,4 +19,6 @@ export interface CampaignUpdate {
   endDate?: string | null;
   /** @nullable */
   externalLink?: string | null;
+  /** Setting active reopens a closed campaign */
+  status?: CampaignUpdateStatus;
 }

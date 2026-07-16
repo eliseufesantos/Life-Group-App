@@ -5,9 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PollVoter } from './pollVoter';
 
 export interface PollOption {
   id: number;
   text: string;
   votes: number;
+  /** Who voted for this option. Always empty when the poll is anonymous. */
+  voters: PollVoter[];
 }

@@ -19,7 +19,9 @@ tags:
   - name: calendar
     description: Calendar (recurring weekly meeting + free events)
   - name: board
-    description: Mural (announcements, polls, weekly tasks, photos)
+    description: Mural (announcements, polls, weekly tasks, photos, albums)
+  - name: registros
+    description: Meeting records (attendance, activities, donations) with leader approval flow
   - name: storage
     description: Object storage upload and serving endpoints
   - name: campaigns
@@ -83,7 +85,13 @@ paths:
     post:
       operationId: createInvite
       tags: [auth]
-      summary: Generate a new single-use invite code (valid 24h)
+      summary: Generate a new single-use invite code (valid 24h) for a named person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteInput"
       responses:
         "201":
           description: Invite created
@@ -91,6 +99,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Invite"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /auth/invites/{code}:
     get:
@@ -291,7 +305,7 @@ paths:
     patch:
       operationId: updateMember
       tags: [members]
-      summary: Update a member's attributes (role, categories, formation track, contact)
+      summary: Update a member's attributes (leader/auxiliary; a member may update only their own avatarPath)
       parameters:
         - name: id
           in: path
@@ -684,6 +698,35 @@ paths:
                 $ref: "#/components/schemas/Announcement"
 
   /board/announcements/{id}:
+    patch:
+      operationId: updateAnnouncement
+      tags: [board]
+      summary: Edit an announcement's title/body (leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementUpdate"
+      responses:
+        "200":
+          description: Updated announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     delete:
       operationId: deleteAnnouncement
       tags: [board]
@@ -956,6 +999,301 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OkResult"
+
+  /board/albums:
+    get:
+      operationId: listAlbums
+      tags: [board]
+      summary: List photo albums with linked event and photo count (newest first)
+      responses:
+        "200":
+          description: Albums
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Album"
+    post:
+      operationId: createAlbum
+      tags: [board]
+      summary: Create a photo album (any member)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlbumInput"
+      responses:
+        "201":
+          description: Album created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Album"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /board/albums/{id}:
+    patch:
+      operationId: updateAlbum
+      tags: [board]
+      summary: Update an album (creator or leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlbumUpdate"
+      responses:
+        "200":
+          description: Updated album
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Album"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteAlbum
+      tags: [board]
+      summary: Delete an album, keeping its photos unlinked (creator or leader/auxiliary)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+
+  /registros:
+    get:
+      operationId: listRegistros
+      tags: [registros]
+      summary: List meeting records (leader/auxiliary)
+      responses:
+        "200":
+          description: Meeting records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RegistroSummary"
+    post:
+      operationId: createRegistro
+      tags: [registros]
+      summary: Create a meeting record (leader publishes directly; auxiliary creates pending)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistroInput"
+      responses:
+        "201":
+          description: Meeting record created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistroDetail"
+        "400":
+          description: Invalid input (e.g. donations without an active campaign)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /registros/atividades:
+    get:
+      operationId: listRegistroActivities
+      tags: [registros]
+      summary: List the activity catalog (seeds the builtin activities on first use)
+      responses:
+        "200":
+          description: Activity catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RegistroActivity"
+    post:
+      operationId: createRegistroActivity
+      tags: [registros]
+      summary: Create a custom catalog activity (leader/auxiliary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistroActivityInput"
+      responses:
+        "201":
+          description: Activity created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistroActivity"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /registros/atividades/{id}:
+    delete:
+      operationId: deleteRegistroActivity
+      tags: [registros]
+      summary: Remove a custom catalog activity (builtin activities cannot be removed)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+        "400":
+          description: Builtin activity cannot be removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /registros/{id}:
+    get:
+      operationId: getRegistro
+      tags: [registros]
+      summary: Get a meeting record with attendance, activities, donations and album
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Meeting record detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistroDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      operationId: updateRegistro
+      tags: [registros]
+      summary: Update a meeting record (auxiliary edits send published records back to pending)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistroUpdate"
+      responses:
+        "200":
+          description: Updated meeting record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistroDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteRegistro
+      tags: [registros]
+      summary: Delete a meeting record (leader only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+        "403":
+          description: Leader only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /registros/{id}/approve:
+    post:
+      operationId: approveRegistro
+      tags: [registros]
+      summary: Approve a pending meeting record (leader only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Meeting record published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistroDetail"
+        "403":
+          description: Leader only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /storage/uploads/request-url:
     post:
@@ -1480,11 +1818,19 @@ components:
             enum: [host, discipler, disciple]
         formationTrack:
           type: ["string", "null"]
+        birthDate:
+          type: ["string", "null"]
+          description: Birth date (YYYY-MM-DD)
+        avatarPath:
+          type: ["string", "null"]
+          description: Object path of the profile picture
       required:
         - id
         - name
         - role
         - categories
+        - birthDate
+        - avatarPath
 
     Invite:
       type: object
@@ -1493,6 +1839,9 @@ components:
           type: integer
         code:
           type: string
+        name:
+          type: string
+          description: Name of the invited person
         createdAt:
           type: string
         expiresAt:
@@ -1502,9 +1851,20 @@ components:
       required:
         - id
         - code
+        - name
         - createdAt
         - expiresAt
         - used
+
+    InviteInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Name of the invited person
+      required:
+        - name
 
     InviteValidation:
       type: object
@@ -1576,6 +1936,12 @@ components:
             enum: [host, discipler, disciple]
         formationTrack:
           type: ["string", "null"]
+        birthDate:
+          type: ["string", "null"]
+          description: Birth date (YYYY-MM-DD)
+        avatarPath:
+          type: ["string", "null"]
+          description: Object path of the profile picture
         invitedBy:
           type: ["string", "null"]
         joinedAt:
@@ -1587,6 +1953,8 @@ components:
         - name
         - status
         - categories
+        - birthDate
+        - avatarPath
         - active
 
     MemberDetail:
@@ -1613,6 +1981,12 @@ components:
             enum: [host, discipler, disciple]
         formationTrack:
           type: ["string", "null"]
+        birthDate:
+          type: ["string", "null"]
+          description: Birth date (YYYY-MM-DD)
+        avatarPath:
+          type: ["string", "null"]
+          description: Object path of the profile picture
         invitedBy:
           type: ["string", "null"]
         joinedAt:
@@ -1632,6 +2006,8 @@ components:
         - name
         - status
         - categories
+        - birthDate
+        - avatarPath
         - active
         - disciples
         - disciplers
@@ -1678,6 +2054,12 @@ components:
             enum: [host, discipler, disciple]
         formationTrack:
           type: string
+        birthDate:
+          type: ["string", "null"]
+          description: Birth date (YYYY-MM-DD), null clears it
+        avatarPath:
+          type: ["string", "null"]
+          description: Object path of the profile picture, null clears it
         active:
           type: boolean
 
@@ -1739,17 +2121,27 @@ components:
 
     Discipleship:
       type: object
+      description: |
+        Each side is either an internal member (id set) or an external person
+        from another Life Group (external name set). At least one side is
+        internal. disciplerName/discipleName always carry the display name.
       properties:
         id:
           type: integer
         disciplerId:
-          type: integer
+          type: ["integer", "null"]
         disciplerName:
           type: string
+        externalDisciplerName:
+          type: ["string", "null"]
+          description: Free-text name when the discipler is from another Life Group
         discipleId:
-          type: integer
+          type: ["integer", "null"]
         discipleName:
           type: string
+        externalDiscipleName:
+          type: ["string", "null"]
+          description: Free-text name when the disciple is from another Life Group
         startDate:
           type: string
         status:
@@ -1761,27 +2153,47 @@ components:
         - id
         - disciplerId
         - disciplerName
+        - externalDisciplerName
         - discipleId
         - discipleName
+        - externalDiscipleName
         - startDate
         - status
 
     DiscipleshipInput:
       type: object
+      description: |
+        For each side provide exactly one of the internal id or the external
+        name. At least one side must be an internal member.
       properties:
         disciplerId:
           type: integer
+        externalDisciplerName:
+          type: string
+          minLength: 1
         discipleId:
           type: integer
+        externalDiscipleName:
+          type: string
+          minLength: 1
         notes:
           type: string
-      required:
-        - disciplerId
-        - discipleId
 
     DiscipleshipUpdate:
       type: object
+      description: |
+        Sides may be reassigned; when changing a side, provide exactly one of
+        the internal id or the external name for it. At least one side must
+        remain an internal member.
       properties:
+        disciplerId:
+          type: ["integer", "null"]
+        externalDisciplerName:
+          type: ["string", "null"]
+        discipleId:
+          type: ["integer", "null"]
+        externalDiscipleName:
+          type: ["string", "null"]
         status:
           type: string
           enum: [active, paused, completed]
@@ -1945,16 +2357,24 @@ components:
           type: string
         body:
           type: string
+        origin:
+          type: string
+          enum: [manual, birthday, campaign, registro_pending]
+          description: Whether the aviso was posted manually or by an automation
         authorName:
           type: ["string", "null"]
         createdAt:
+          type: string
+        updatedAt:
           type: string
       required:
         - id
         - title
         - body
+        - origin
         - authorName
         - createdAt
+        - updatedAt
 
     AnnouncementInput:
       type: object
@@ -1969,6 +2389,30 @@ components:
         - title
         - body
 
+    AnnouncementUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        body:
+          type: string
+          minLength: 1
+
+    PollVoter:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        avatarPath:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - avatarPath
+
     PollOption:
       type: object
       properties:
@@ -1978,10 +2422,16 @@ components:
           type: string
         votes:
           type: integer
+        voters:
+          type: array
+          description: Who voted for this option. Always empty when the poll is anonymous.
+          items:
+            $ref: "#/components/schemas/PollVoter"
       required:
         - id
         - text
         - votes
+        - voters
 
     Poll:
       type: object
@@ -1991,6 +2441,11 @@ components:
         question:
           type: string
         closed:
+          type: boolean
+        endsAt:
+          type: ["string", "null"]
+          description: Expiration date-time. Expired polls are hard-deleted on listing.
+        anonymous:
           type: boolean
         options:
           type: array
@@ -2009,6 +2464,8 @@ components:
         - id
         - question
         - closed
+        - endsAt
+        - anonymous
         - options
         - myVote
         - totalVotes
@@ -2027,6 +2484,12 @@ components:
           items:
             type: string
             minLength: 1
+        endsAt:
+          type: string
+          format: date-time
+          description: Optional expiration. After this instant the poll is deleted for good.
+        anonymous:
+          type: boolean
       required:
         - question
         - options
@@ -2084,9 +2547,11 @@ components:
           pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
         assignedTo:
           type: integer
+          description: Tasks always belong to a specific person
       required:
         - title
         - weekStart
+        - assignedTo
 
     Photo:
       type: object
@@ -2094,10 +2559,19 @@ components:
         id:
           type: integer
         objectPath:
-          type: string
+          type: ["string", "null"]
+          description: Storage path for uploaded photos, null for Drive photos
         url:
           type: string
-          description: Relative serving URL for the photo
+          description: Serving URL (relative for uploads, absolute for Drive photos)
+        sourceType:
+          type: string
+          enum: [upload, drive]
+        externalUrl:
+          type: ["string", "null"]
+          description: Google Drive URL for drive photos
+        albumId:
+          type: ["integer", "null"]
         caption:
           type: ["string", "null"]
         uploaderName:
@@ -2110,6 +2584,9 @@ components:
         - id
         - objectPath
         - url
+        - sourceType
+        - externalUrl
+        - albumId
         - caption
         - uploaderName
         - uploadedBy
@@ -2117,14 +2594,365 @@ components:
 
     PhotoInput:
       type: object
+      description: |
+        sourceType 'upload' (default) requires objectPath; sourceType 'drive'
+        requires externalUrl (https).
       properties:
         objectPath:
           type: string
           minLength: 1
+        sourceType:
+          type: string
+          enum: [upload, drive]
+          default: upload
+        externalUrl:
+          type: string
+          format: uri
+        albumId:
+          type: integer
         caption:
           type: string
+
+    Album:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        eventId:
+          type: ["integer", "null"]
+          description: Linked calendar event, if any
+        eventTitle:
+          type: ["string", "null"]
+        driveUrl:
+          type: ["string", "null"]
+          description: Link to a shared Google Drive folder
+        photoCount:
+          type: integer
+        createdBy:
+          type: ["integer", "null"]
+        createdByName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
       required:
-        - objectPath
+        - id
+        - title
+        - eventId
+        - eventTitle
+        - driveUrl
+        - photoCount
+        - createdBy
+        - createdByName
+        - createdAt
+
+    AlbumInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        eventId:
+          type: integer
+        driveUrl:
+          type: string
+          format: uri
+      required:
+        - title
+
+    AlbumUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        eventId:
+          type: ["integer", "null"]
+        driveUrl:
+          type: ["string", "null"]
+
+    RegistroSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        seq:
+          type: integer
+          description: Sequential meeting number
+        eventDate:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        status:
+          type: string
+          enum: [pending, published]
+        presentCount:
+          type: integer
+        createdByName:
+          type: ["string", "null"]
+      required:
+        - id
+        - seq
+        - eventDate
+        - status
+        - presentCount
+        - createdByName
+
+    RegistroAttendee:
+      type: object
+      properties:
+        userId:
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+          enum: [member, guest]
+      required:
+        - userId
+        - name
+        - status
+
+    RegistroActivityEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        atividadeId:
+          type: ["integer", "null"]
+          description: Catalog activity id, null when the catalog entry was removed
+        name:
+          type: string
+          description: Snapshot of the activity name
+        responsavelId:
+          type: ["integer", "null"]
+        responsavelName:
+          type: ["string", "null"]
+        durationMin:
+          type: ["integer", "null"]
+      required:
+        - id
+        - atividadeId
+        - name
+        - responsavelId
+        - responsavelName
+        - durationMin
+
+    RegistroDonationItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        itemName:
+          type: string
+        quantity:
+          type: integer
+      required:
+        - id
+        - itemName
+        - quantity
+
+    RegistroAlbum:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        driveUrl:
+          type: ["string", "null"]
+      required:
+        - id
+        - title
+        - driveUrl
+
+    RegistroDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        seq:
+          type: integer
+        eventDate:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        status:
+          type: string
+          enum: [pending, published]
+        notes:
+          type: ["string", "null"]
+        createdByName:
+          type: ["string", "null"]
+        approvedByName:
+          type: ["string", "null"]
+        presentes:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistroAttendee"
+        atividades:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistroActivityEntry"
+        arrecadacao:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistroDonationItem"
+        album:
+          oneOf:
+            - $ref: "#/components/schemas/RegistroAlbum"
+            - type: "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - seq
+        - eventDate
+        - status
+        - notes
+        - createdByName
+        - approvedByName
+        - presentes
+        - atividades
+        - arrecadacao
+        - album
+        - createdAt
+        - updatedAt
+
+    RegistroNewGuest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+      required:
+        - name
+
+    RegistroActivityInputEntry:
+      type: object
+      properties:
+        atividadeId:
+          type: integer
+          description: Catalog activity id, when picked from the catalog
+        name:
+          type: string
+          minLength: 1
+          description: Activity name snapshot
+        responsavelId:
+          type: integer
+        durationMin:
+          type: integer
+          minimum: 1
+      required:
+        - name
+
+    RegistroDonationInputEntry:
+      type: object
+      properties:
+        item:
+          type: string
+          minLength: 1
+        quantity:
+          type: integer
+          minimum: 1
+      required:
+        - item
+        - quantity
+
+    RegistroInput:
+      type: object
+      properties:
+        eventDate:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        presentes:
+          type: array
+          description: Ids of members/guests present
+          items:
+            type: integer
+        novosConvidados:
+          type: array
+          description: New guests to create (status guest, no tags) and mark present
+          items:
+            $ref: "#/components/schemas/RegistroNewGuest"
+        atividades:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistroActivityInputEntry"
+        albumId:
+          type: integer
+        arrecadacao:
+          type: array
+          description: Donated items, linked to the currently active campaign
+          items:
+            $ref: "#/components/schemas/RegistroDonationInputEntry"
+        notes:
+          type: string
+      required:
+        - eventDate
+        - presentes
+
+    RegistroUpdate:
+      type: object
+      properties:
+        eventDate:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        presentes:
+          type: array
+          description: Replaces the attendance list when provided
+          items:
+            type: integer
+        novosConvidados:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistroNewGuest"
+        atividades:
+          type: array
+          description: Replaces the activity list when provided
+          items:
+            $ref: "#/components/schemas/RegistroActivityInputEntry"
+        albumId:
+          type: ["integer", "null"]
+        arrecadacao:
+          type: array
+          description: Replaces the donation entries of this record when provided
+          items:
+            $ref: "#/components/schemas/RegistroDonationInputEntry"
+        notes:
+          type: ["string", "null"]
+
+    RegistroActivity:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        hasDuration:
+          type: boolean
+        builtin:
+          type: boolean
+      required:
+        - id
+        - name
+        - hasDuration
+        - builtin
+
+    RegistroActivityInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        hasDuration:
+          type: boolean
+          default: true
+      required:
+        - name
 
     UploadUrlRequest:
       type: object
@@ -2247,6 +3075,10 @@ components:
           type: ["string", "null"]
         externalLink:
           type: ["string", "null"]
+        status:
+          type: string
+          enum: [active, closed]
+          description: Setting active reopens a closed campaign
 
     CampaignItem:
       type: object

@@ -20,8 +20,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  Album,
+  AlbumInput,
+  AlbumUpdate,
   Announcement,
   AnnouncementInput,
+  AnnouncementUpdate,
   AppNotification,
   CalendarEvent,
   Campaign,
@@ -42,6 +46,7 @@ import type {
   HealthStatus,
   ImportResult,
   Invite,
+  InviteInput,
   InviteValidation,
   ListCalendarEventsParams,
   ListMembersParams,
@@ -67,6 +72,12 @@ import type {
   RecurrenceConfig,
   RecurrenceInput,
   RegisterInput,
+  RegistroActivity,
+  RegistroActivityInput,
+  RegistroDetail,
+  RegistroInput,
+  RegistroSummary,
+  RegistroUpdate,
   Report,
   ReportGenerateInput,
   ReportSummary,
@@ -346,25 +357,25 @@ export const getCreateInviteUrl = () => {
 }
 
 /**
- * @summary Generate a new single-use invite code (valid 24h)
+ * @summary Generate a new single-use invite code (valid 24h) for a named person
  */
-export const createInvite = async ( options?: RequestInit): Promise<Invite> => {
+export const createInvite = async (inviteInput: InviteInput, options?: RequestInit): Promise<Invite> => {
 
   return customFetch<Invite>(getCreateInviteUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(inviteInput)
   }
 );}
 
 
 
 
-export const getCreateInviteMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInvite>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createInvite>>, TError,void, TContext> => {
+export const getCreateInviteMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInvite>>, TError,{data: BodyType<InviteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createInvite>>, TError,{data: BodyType<InviteInput>}, TContext> => {
 
 const mutationKey = ['createInvite'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -376,10 +387,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createInvite>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createInvite>>, {data: BodyType<InviteInput>}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  createInvite(requestOptions)
+          return  createInvite(data,requestOptions)
         }
 
 
@@ -390,18 +401,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateInviteMutationResult = NonNullable<Awaited<ReturnType<typeof createInvite>>>
-
-    export type CreateInviteMutationError = ErrorType<unknown>
+    export type CreateInviteMutationBody = BodyType<InviteInput>
+    export type CreateInviteMutationError = ErrorType<Error>
 
     /**
- * @summary Generate a new single-use invite code (valid 24h)
+ * @summary Generate a new single-use invite code (valid 24h) for a named person
  */
-export const useCreateInvite = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInvite>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useCreateInvite = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInvite>>, TError,{data: BodyType<InviteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createInvite>>,
         TError,
-        void,
+        {data: BodyType<InviteInput>},
         TContext
       > => {
       return useMutation(getCreateInviteMutationOptions(options));
@@ -1074,7 +1085,7 @@ export const getUpdateMemberUrl = (id: number,) => {
 }
 
 /**
- * @summary Update a member's attributes (role, categories, formation track, contact)
+ * @summary Update a member's attributes (leader/auxiliary; a member may update only their own avatarPath)
  */
 export const updateMember = async (id: number,
     memberUpdate: MemberUpdate, options?: RequestInit): Promise<MemberDetail> => {
@@ -1123,7 +1134,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateMemberMutationError = ErrorType<Error>
 
     /**
- * @summary Update a member's attributes (role, categories, formation track, contact)
+ * @summary Update a member's attributes (leader/auxiliary; a member may update only their own avatarPath)
  */
 export const useUpdateMember = <TError = ErrorType<Error>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMember>>, TError,{id: number;data: BodyType<MemberUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -2449,6 +2460,77 @@ export const useCreateAnnouncement = <TError = ErrorType<unknown>,
       return useMutation(getCreateAnnouncementMutationOptions(options));
     }
 
+export const getUpdateAnnouncementUrl = (id: number,) => {
+
+
+
+
+  return `/api/board/announcements/${id}`
+}
+
+/**
+ * @summary Edit an announcement's title/body (leader/auxiliary)
+ */
+export const updateAnnouncement = async (id: number,
+    announcementUpdate: AnnouncementUpdate, options?: RequestInit): Promise<Announcement> => {
+
+  return customFetch<Announcement>(getUpdateAnnouncementUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(announcementUpdate)
+  }
+);}
+
+
+
+
+export const getUpdateAnnouncementMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAnnouncement>>, TError,{id: number;data: BodyType<AnnouncementUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAnnouncement>>, TError,{id: number;data: BodyType<AnnouncementUpdate>}, TContext> => {
+
+const mutationKey = ['updateAnnouncement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAnnouncement>>, {id: number;data: BodyType<AnnouncementUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAnnouncement(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAnnouncementMutationResult = NonNullable<Awaited<ReturnType<typeof updateAnnouncement>>>
+    export type UpdateAnnouncementMutationBody = BodyType<AnnouncementUpdate>
+    export type UpdateAnnouncementMutationError = ErrorType<Error>
+
+    /**
+ * @summary Edit an announcement's title/body (leader/auxiliary)
+ */
+export const useUpdateAnnouncement = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAnnouncement>>, TError,{id: number;data: BodyType<AnnouncementUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAnnouncement>>,
+        TError,
+        {id: number;data: BodyType<AnnouncementUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateAnnouncementMutationOptions(options));
+    }
+
 export const getDeleteAnnouncementUrl = (id: number,) => {
 
 
@@ -3456,6 +3538,946 @@ export const useDeletePhoto = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeletePhotoMutationOptions(options));
+    }
+
+export const getListAlbumsUrl = () => {
+
+
+
+
+  return `/api/board/albums`
+}
+
+/**
+ * @summary List photo albums with linked event and photo count (newest first)
+ */
+export const listAlbums = async ( options?: RequestInit): Promise<Album[]> => {
+
+  return customFetch<Album[]>(getListAlbumsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAlbumsQueryKey = () => {
+    return [
+    `/api/board/albums`
+    ] as const;
+    }
+
+
+export const getListAlbumsQueryOptions = <TData = Awaited<ReturnType<typeof listAlbums>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAlbums>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAlbumsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAlbums>>> = ({ signal }) => listAlbums({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAlbums>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAlbumsQueryResult = NonNullable<Awaited<ReturnType<typeof listAlbums>>>
+export type ListAlbumsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List photo albums with linked event and photo count (newest first)
+ */
+
+export function useListAlbums<TData = Awaited<ReturnType<typeof listAlbums>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAlbums>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAlbumsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAlbumUrl = () => {
+
+
+
+
+  return `/api/board/albums`
+}
+
+/**
+ * @summary Create a photo album (any member)
+ */
+export const createAlbum = async (albumInput: AlbumInput, options?: RequestInit): Promise<Album> => {
+
+  return customFetch<Album>(getCreateAlbumUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(albumInput)
+  }
+);}
+
+
+
+
+export const getCreateAlbumMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAlbum>>, TError,{data: BodyType<AlbumInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAlbum>>, TError,{data: BodyType<AlbumInput>}, TContext> => {
+
+const mutationKey = ['createAlbum'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAlbum>>, {data: BodyType<AlbumInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAlbum(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAlbumMutationResult = NonNullable<Awaited<ReturnType<typeof createAlbum>>>
+    export type CreateAlbumMutationBody = BodyType<AlbumInput>
+    export type CreateAlbumMutationError = ErrorType<Error>
+
+    /**
+ * @summary Create a photo album (any member)
+ */
+export const useCreateAlbum = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAlbum>>, TError,{data: BodyType<AlbumInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAlbum>>,
+        TError,
+        {data: BodyType<AlbumInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAlbumMutationOptions(options));
+    }
+
+export const getUpdateAlbumUrl = (id: number,) => {
+
+
+
+
+  return `/api/board/albums/${id}`
+}
+
+/**
+ * @summary Update an album (creator or leader/auxiliary)
+ */
+export const updateAlbum = async (id: number,
+    albumUpdate: AlbumUpdate, options?: RequestInit): Promise<Album> => {
+
+  return customFetch<Album>(getUpdateAlbumUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(albumUpdate)
+  }
+);}
+
+
+
+
+export const getUpdateAlbumMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAlbum>>, TError,{id: number;data: BodyType<AlbumUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAlbum>>, TError,{id: number;data: BodyType<AlbumUpdate>}, TContext> => {
+
+const mutationKey = ['updateAlbum'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAlbum>>, {id: number;data: BodyType<AlbumUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAlbum(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAlbumMutationResult = NonNullable<Awaited<ReturnType<typeof updateAlbum>>>
+    export type UpdateAlbumMutationBody = BodyType<AlbumUpdate>
+    export type UpdateAlbumMutationError = ErrorType<Error>
+
+    /**
+ * @summary Update an album (creator or leader/auxiliary)
+ */
+export const useUpdateAlbum = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAlbum>>, TError,{id: number;data: BodyType<AlbumUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAlbum>>,
+        TError,
+        {id: number;data: BodyType<AlbumUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateAlbumMutationOptions(options));
+    }
+
+export const getDeleteAlbumUrl = (id: number,) => {
+
+
+
+
+  return `/api/board/albums/${id}`
+}
+
+/**
+ * @summary Delete an album, keeping its photos unlinked (creator or leader/auxiliary)
+ */
+export const deleteAlbum = async (id: number, options?: RequestInit): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getDeleteAlbumUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAlbumMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAlbum>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAlbum>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteAlbum'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAlbum>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAlbum(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAlbumMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAlbum>>>
+
+    export type DeleteAlbumMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete an album, keeping its photos unlinked (creator or leader/auxiliary)
+ */
+export const useDeleteAlbum = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAlbum>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAlbum>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAlbumMutationOptions(options));
+    }
+
+export const getListRegistrosUrl = () => {
+
+
+
+
+  return `/api/registros`
+}
+
+/**
+ * @summary List meeting records (leader/auxiliary)
+ */
+export const listRegistros = async ( options?: RequestInit): Promise<RegistroSummary[]> => {
+
+  return customFetch<RegistroSummary[]>(getListRegistrosUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRegistrosQueryKey = () => {
+    return [
+    `/api/registros`
+    ] as const;
+    }
+
+
+export const getListRegistrosQueryOptions = <TData = Awaited<ReturnType<typeof listRegistros>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRegistros>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRegistrosQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRegistros>>> = ({ signal }) => listRegistros({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRegistros>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRegistrosQueryResult = NonNullable<Awaited<ReturnType<typeof listRegistros>>>
+export type ListRegistrosQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List meeting records (leader/auxiliary)
+ */
+
+export function useListRegistros<TData = Awaited<ReturnType<typeof listRegistros>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRegistros>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRegistrosQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateRegistroUrl = () => {
+
+
+
+
+  return `/api/registros`
+}
+
+/**
+ * @summary Create a meeting record (leader publishes directly; auxiliary creates pending)
+ */
+export const createRegistro = async (registroInput: RegistroInput, options?: RequestInit): Promise<RegistroDetail> => {
+
+  return customFetch<RegistroDetail>(getCreateRegistroUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(registroInput)
+  }
+);}
+
+
+
+
+export const getCreateRegistroMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRegistro>>, TError,{data: BodyType<RegistroInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRegistro>>, TError,{data: BodyType<RegistroInput>}, TContext> => {
+
+const mutationKey = ['createRegistro'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRegistro>>, {data: BodyType<RegistroInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createRegistro(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRegistroMutationResult = NonNullable<Awaited<ReturnType<typeof createRegistro>>>
+    export type CreateRegistroMutationBody = BodyType<RegistroInput>
+    export type CreateRegistroMutationError = ErrorType<Error>
+
+    /**
+ * @summary Create a meeting record (leader publishes directly; auxiliary creates pending)
+ */
+export const useCreateRegistro = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRegistro>>, TError,{data: BodyType<RegistroInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRegistro>>,
+        TError,
+        {data: BodyType<RegistroInput>},
+        TContext
+      > => {
+      return useMutation(getCreateRegistroMutationOptions(options));
+    }
+
+export const getListRegistroActivitiesUrl = () => {
+
+
+
+
+  return `/api/registros/atividades`
+}
+
+/**
+ * @summary List the activity catalog (seeds the builtin activities on first use)
+ */
+export const listRegistroActivities = async ( options?: RequestInit): Promise<RegistroActivity[]> => {
+
+  return customFetch<RegistroActivity[]>(getListRegistroActivitiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRegistroActivitiesQueryKey = () => {
+    return [
+    `/api/registros/atividades`
+    ] as const;
+    }
+
+
+export const getListRegistroActivitiesQueryOptions = <TData = Awaited<ReturnType<typeof listRegistroActivities>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRegistroActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRegistroActivitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRegistroActivities>>> = ({ signal }) => listRegistroActivities({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRegistroActivities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRegistroActivitiesQueryResult = NonNullable<Awaited<ReturnType<typeof listRegistroActivities>>>
+export type ListRegistroActivitiesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the activity catalog (seeds the builtin activities on first use)
+ */
+
+export function useListRegistroActivities<TData = Awaited<ReturnType<typeof listRegistroActivities>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRegistroActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRegistroActivitiesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateRegistroActivityUrl = () => {
+
+
+
+
+  return `/api/registros/atividades`
+}
+
+/**
+ * @summary Create a custom catalog activity (leader/auxiliary)
+ */
+export const createRegistroActivity = async (registroActivityInput: RegistroActivityInput, options?: RequestInit): Promise<RegistroActivity> => {
+
+  return customFetch<RegistroActivity>(getCreateRegistroActivityUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(registroActivityInput)
+  }
+);}
+
+
+
+
+export const getCreateRegistroActivityMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRegistroActivity>>, TError,{data: BodyType<RegistroActivityInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRegistroActivity>>, TError,{data: BodyType<RegistroActivityInput>}, TContext> => {
+
+const mutationKey = ['createRegistroActivity'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRegistroActivity>>, {data: BodyType<RegistroActivityInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createRegistroActivity(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRegistroActivityMutationResult = NonNullable<Awaited<ReturnType<typeof createRegistroActivity>>>
+    export type CreateRegistroActivityMutationBody = BodyType<RegistroActivityInput>
+    export type CreateRegistroActivityMutationError = ErrorType<Error>
+
+    /**
+ * @summary Create a custom catalog activity (leader/auxiliary)
+ */
+export const useCreateRegistroActivity = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRegistroActivity>>, TError,{data: BodyType<RegistroActivityInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRegistroActivity>>,
+        TError,
+        {data: BodyType<RegistroActivityInput>},
+        TContext
+      > => {
+      return useMutation(getCreateRegistroActivityMutationOptions(options));
+    }
+
+export const getDeleteRegistroActivityUrl = (id: number,) => {
+
+
+
+
+  return `/api/registros/atividades/${id}`
+}
+
+/**
+ * @summary Remove a custom catalog activity (builtin activities cannot be removed)
+ */
+export const deleteRegistroActivity = async (id: number, options?: RequestInit): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getDeleteRegistroActivityUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteRegistroActivityMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRegistroActivity>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteRegistroActivity>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteRegistroActivity'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteRegistroActivity>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteRegistroActivity(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteRegistroActivityMutationResult = NonNullable<Awaited<ReturnType<typeof deleteRegistroActivity>>>
+
+    export type DeleteRegistroActivityMutationError = ErrorType<Error>
+
+    /**
+ * @summary Remove a custom catalog activity (builtin activities cannot be removed)
+ */
+export const useDeleteRegistroActivity = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRegistroActivity>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteRegistroActivity>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteRegistroActivityMutationOptions(options));
+    }
+
+export const getGetRegistroUrl = (id: number,) => {
+
+
+
+
+  return `/api/registros/${id}`
+}
+
+/**
+ * @summary Get a meeting record with attendance, activities, donations and album
+ */
+export const getRegistro = async (id: number, options?: RequestInit): Promise<RegistroDetail> => {
+
+  return customFetch<RegistroDetail>(getGetRegistroUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRegistroQueryKey = (id: number,) => {
+    return [
+    `/api/registros/${id}`
+    ] as const;
+    }
+
+
+export const getGetRegistroQueryOptions = <TData = Awaited<ReturnType<typeof getRegistro>>, TError = ErrorType<Error>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRegistro>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRegistroQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRegistro>>> = ({ signal }) => getRegistro(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRegistro>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRegistroQueryResult = NonNullable<Awaited<ReturnType<typeof getRegistro>>>
+export type GetRegistroQueryError = ErrorType<Error>
+
+
+/**
+ * @summary Get a meeting record with attendance, activities, donations and album
+ */
+
+export function useGetRegistro<TData = Awaited<ReturnType<typeof getRegistro>>, TError = ErrorType<Error>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRegistro>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRegistroQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateRegistroUrl = (id: number,) => {
+
+
+
+
+  return `/api/registros/${id}`
+}
+
+/**
+ * @summary Update a meeting record (auxiliary edits send published records back to pending)
+ */
+export const updateRegistro = async (id: number,
+    registroUpdate: RegistroUpdate, options?: RequestInit): Promise<RegistroDetail> => {
+
+  return customFetch<RegistroDetail>(getUpdateRegistroUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(registroUpdate)
+  }
+);}
+
+
+
+
+export const getUpdateRegistroMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRegistro>>, TError,{id: number;data: BodyType<RegistroUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRegistro>>, TError,{id: number;data: BodyType<RegistroUpdate>}, TContext> => {
+
+const mutationKey = ['updateRegistro'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRegistro>>, {id: number;data: BodyType<RegistroUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateRegistro(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRegistroMutationResult = NonNullable<Awaited<ReturnType<typeof updateRegistro>>>
+    export type UpdateRegistroMutationBody = BodyType<RegistroUpdate>
+    export type UpdateRegistroMutationError = ErrorType<Error>
+
+    /**
+ * @summary Update a meeting record (auxiliary edits send published records back to pending)
+ */
+export const useUpdateRegistro = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRegistro>>, TError,{id: number;data: BodyType<RegistroUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRegistro>>,
+        TError,
+        {id: number;data: BodyType<RegistroUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateRegistroMutationOptions(options));
+    }
+
+export const getDeleteRegistroUrl = (id: number,) => {
+
+
+
+
+  return `/api/registros/${id}`
+}
+
+/**
+ * @summary Delete a meeting record (leader only)
+ */
+export const deleteRegistro = async (id: number, options?: RequestInit): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getDeleteRegistroUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteRegistroMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRegistro>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteRegistro>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteRegistro'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteRegistro>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteRegistro(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteRegistroMutationResult = NonNullable<Awaited<ReturnType<typeof deleteRegistro>>>
+
+    export type DeleteRegistroMutationError = ErrorType<Error>
+
+    /**
+ * @summary Delete a meeting record (leader only)
+ */
+export const useDeleteRegistro = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRegistro>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteRegistro>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteRegistroMutationOptions(options));
+    }
+
+export const getApproveRegistroUrl = (id: number,) => {
+
+
+
+
+  return `/api/registros/${id}/approve`
+}
+
+/**
+ * @summary Approve a pending meeting record (leader only)
+ */
+export const approveRegistro = async (id: number, options?: RequestInit): Promise<RegistroDetail> => {
+
+  return customFetch<RegistroDetail>(getApproveRegistroUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getApproveRegistroMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveRegistro>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveRegistro>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['approveRegistro'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveRegistro>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  approveRegistro(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveRegistroMutationResult = NonNullable<Awaited<ReturnType<typeof approveRegistro>>>
+
+    export type ApproveRegistroMutationError = ErrorType<Error>
+
+    /**
+ * @summary Approve a pending meeting record (leader only)
+ */
+export const useApproveRegistro = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveRegistro>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveRegistro>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getApproveRegistroMutationOptions(options));
     }
 
 export const getRequestUploadUrlUrl = () => {

@@ -37,8 +37,13 @@ export function Tasks({ user }: { user: CurrentUser }) {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+    // Tasks always belong to a specific person now
+    if (!assignedTo || assignedTo === "none") {
+      toast({ variant: "destructive", title: "Selecione um responsável" });
+      return;
+    }
     createTask.mutate(
-      { data: { title, weekStart, assignedTo: assignedTo && assignedTo !== "none" ? Number(assignedTo) : undefined } },
+      { data: { title, weekStart, assignedTo: Number(assignedTo) } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey({ weekStart }) });

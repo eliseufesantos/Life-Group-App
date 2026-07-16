@@ -3,6 +3,7 @@ import {
   serial,
   text,
   boolean,
+  date,
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -21,6 +22,8 @@ export const usuariosTable = pgTable(
     role: text("role"),
     categories: text("categories").array().notNull().default([]),
     formationTrack: text("formation_track"),
+    birthDate: date("birth_date", { mode: "string" }),
+    avatarPath: text("avatar_path"),
     invitedBy: text("invited_by"),
     joinedAt: timestamp("joined_at", { withTimezone: true }),
     active: boolean("active").notNull().default(true),

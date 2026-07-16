@@ -19,9 +19,9 @@ const TABS = [
     match: [
       "/perfil",
       "/membros",
-      "/discipulado",
       "/convites",
       "/campanhas",
+      "/registros",
       "/relatorios",
       "/celula",
       "/configuracoes",

@@ -18,8 +18,10 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, requirePrivileged, isPrivileged, type AuthedRequest } from "../lib/auth";
 import { toMember, toDiscipleship, type DiscipleshipRow } from "../lib/mappers";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
+const objectStorageService = new ObjectStorageService();
 
 async function loadDiscipleships(memberId: number) {
   const rels = await db
@@ -33,7 +35,11 @@ async function loadDiscipleships(memberId: number) {
 
   const all = [...rels, ...relsAsDisciple];
   const ids = Array.from(
-    new Set(all.flatMap((r) => [r.disciplerId, r.discipleId])),
+    new Set(
+      all
+        .flatMap((r) => [r.disciplerId, r.discipleId])
+        .filter((id): id is number => id !== null),
+    ),
   );
   const names = new Map<number, string>();
   if (ids.length > 0) {
@@ -45,8 +51,7 @@ async function loadDiscipleships(memberId: number) {
   }
   const map = (r: (typeof all)[number]): DiscipleshipRow => ({
     rel: r,
-    disciplerName: names.get(r.disciplerId) ?? "",
-    discipleName: names.get(r.discipleId) ?? "",
+    names,
   });
   return {
     disciples: rels.map(map).map(toDiscipleship),
@@ -70,7 +75,10 @@ router.get("/members", requireAuth, async (req: AuthedRequest, res): Promise<voi
     return true;
   });
 
-  res.json(filtered.map((u) => toMember(u, privileged)));
+  // O próprio membro sempre vê os próprios dados restritos (incl. nascimento).
+  res.json(
+    filtered.map((u) => toMember(u, privileged || u.id === req.user!.id)),
+  );
 });
 
 router.get("/members/stats", requireAuth, async (_req, res): Promise<void> => {
@@ -173,18 +181,34 @@ router.get("/members/:id", requireAuth, async (req: AuthedRequest, res): Promise
   }
   const privileged = isPrivileged(req.user);
   const { disciples, disciplers } = await loadDiscipleships(member.id);
-  res.json({ ...toMember(member, privileged), disciples, disciplers });
+  const canSeePrivate = privileged || member.id === req.user!.id;
+  res.json({ ...toMember(member, canSeePrivate), disciples, disciplers });
 });
 
 router.patch(
   "/members/:id",
   requireAuth,
-  requirePrivileged,
-  async (req, res): Promise<void> => {
+  async (req: AuthedRequest, res): Promise<void> => {
     const params = UpdateMemberParams.safeParse(req.params);
     if (!params.success) {
       res.status(400).json({ error: params.error.message });
       return;
+    }
+    // Self-service exception: a non-privileged user may update ONLY their own
+    // profile photo and/or birth date. The body must contain only fields from
+    // the self-editable allowlist; anything else (or someone else's id) keeps
+    // the 403 as before.
+    const SELF_EDITABLE_FIELDS = new Set(["avatarPath", "birthDate"]);
+    if (!isPrivileged(req.user)) {
+      const isSelf = req.user!.id === params.data.id;
+      const bodyKeys = Object.keys((req.body ?? {}) as Record<string, unknown>);
+      const onlySelfEditable =
+        bodyKeys.length > 0 &&
+        bodyKeys.every((k) => SELF_EDITABLE_FIELDS.has(k));
+      if (!isSelf || !onlySelfEditable) {
+        res.status(403).json({ error: "Acesso restrito a lideres e auxiliares" });
+        return;
+      }
     }
     const parsed = UpdateMemberBody.safeParse(req.body);
     if (!parsed.success) {
@@ -192,15 +216,93 @@ router.patch(
       return;
     }
     const data = parsed.data;
+
+    const [target] = await db
+      .select()
+      .from(usuariosTable)
+      .where(eq(usuariosTable.id, params.data.id));
+    if (!target) {
+      res.status(404).json({ error: "Membro nao encontrado" });
+      return;
+    }
+    // Guests never receive a role, categories or formation track
+    if (
+      target.status === "guest" &&
+      (data.role !== undefined ||
+        (data.categories !== undefined && data.categories.length > 0) ||
+        (data.formationTrack !== undefined && data.formationTrack !== ""))
+    ) {
+      res.status(400).json({
+        error:
+          "Convidado não pode receber função, categoria ou trilha de formação",
+      });
+      return;
+    }
+
+    // As telas enviam o formulário inteiro, então um campo apenas presente não
+    // significa alteração: as restrições abaixo valem para mudanças reais, ou
+    // um auxiliar não conseguiria editar nada e o líder não editaria o próprio
+    // perfil.
+    const nextEmail =
+      data.email !== undefined ? data.email.trim().toLowerCase() || null : undefined;
+    const roleChanged = data.role !== undefined && data.role !== target.role;
+    const emailChanged = nextEmail !== undefined && nextEmail !== target.email;
+
+    // Only the leader assigns roles, and nobody changes their own role
+    // (an auxiliary could otherwise self-promote to leader).
+    if (roleChanged) {
+      if (req.user!.role !== "leader") {
+        res.status(403).json({ error: "Apenas o líder pode alterar papéis" });
+        return;
+      }
+      if (params.data.id === req.user!.id) {
+        res
+          .status(403)
+          .json({ error: "Não é possível alterar o próprio papel" });
+        return;
+      }
+    }
+    // Only the leader changes an e-mail — it is the magic-link login channel,
+    // so an auxiliary editing it would be an account-takeover vector.
+    if (emailChanged && req.user!.role !== "leader") {
+      res.status(403).json({ error: "Apenas o líder pode alterar e-mail" });
+      return;
+    }
+
     const update: Record<string, unknown> = {};
     if (data.name !== undefined) update.name = data.name;
-    if (data.email !== undefined)
-      update.email = data.email.trim().toLowerCase() || null;
+    if (nextEmail !== undefined) update.email = nextEmail;
     if (data.phone !== undefined) update.phone = data.phone || null;
     if (data.role !== undefined) update.role = data.role;
     if (data.categories !== undefined) update.categories = data.categories;
     if (data.formationTrack !== undefined)
       update.formationTrack = data.formationTrack || null;
+    if (data.birthDate !== undefined) update.birthDate = data.birthDate || null;
+    if (data.avatarPath !== undefined) {
+      const raw = data.avatarPath?.trim() ?? "";
+      if (raw === "") {
+        update.avatarPath = null;
+      } else if (!raw.startsWith("/objects/")) {
+        res.status(400).json({ error: "avatarPath inválido" });
+        return;
+      } else {
+        // Grant read access to the uploaded object, or GET /api/storage 403s
+        // and the avatar never loads. Owner is the profile being edited.
+        try {
+          await objectStorageService.trySetObjectEntityAclPolicy(raw, {
+            owner: String(params.data.id),
+            visibility: "public",
+          });
+        } catch (error) {
+          req.log.error({ err: error }, "Falha ao definir ACL do avatar");
+          res
+            .status(400)
+            .json({ error: "Objeto não encontrado no armazenamento" });
+          return;
+        }
+        update.avatarPath = raw;
+      }
+    }
     if (data.active !== undefined) update.active = data.active;
 
     const [member] = await db
@@ -233,6 +335,22 @@ router.post(
       return;
     }
     const email = parsed.data.email.trim().toLowerCase();
+    const [target] = await db
+      .select({ status: usuariosTable.status })
+      .from(usuariosTable)
+      .where(eq(usuariosTable.id, params.data.id));
+    if (!target) {
+      res.status(404).json({ error: "Convidado nao encontrado" });
+      return;
+    }
+    // Only guests can be promoted — otherwise this endpoint could rewrite an
+    // existing member/leader's email and role (account-takeover vector).
+    if (target.status !== "guest") {
+      res
+        .status(400)
+        .json({ error: "Apenas convidados podem ser promovidos" });
+      return;
+    }
     const [member] = await db
       .update(usuariosTable)
       .set({

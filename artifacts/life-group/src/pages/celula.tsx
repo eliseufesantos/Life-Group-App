@@ -90,11 +90,11 @@ export default function CelulaConfig() {
     if (!objectPath) return;
     setPhotoUrl(objectPath);
     updateConfig.mutate(
-      { data: { name: name.trim() || config?.name || "Célula", photoUrl: objectPath } },
+      { data: { name: name.trim() || config?.name || "Life Group", photoUrl: objectPath } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetCellConfigQueryKey() });
-          toast({ title: "Foto da célula atualizada" });
+          toast({ title: "Foto do Life Group atualizada" });
         },
         onError: () => toast({ variant: "destructive", title: "Erro ao salvar foto" }),
       },
@@ -115,7 +115,7 @@ export default function CelulaConfig() {
 
   return (
     <div className="px-5 pt-6 space-y-5">
-      <PageHeader title="Célula" subtitle="Identidade e reunião semanal" />
+      <PageHeader title="Life Group" subtitle="Identidade e reunião semanal" />
 
       <Card>
         <CardHeader><CardTitle>Identidade</CardTitle></CardHeader>
@@ -123,7 +123,7 @@ export default function CelulaConfig() {
           <div className="flex items-center gap-4">
             <div className="h-20 w-20 rounded-xl bg-muted overflow-hidden flex items-center justify-center border">
               {src ? (
-                <img src={src} alt="Foto da célula" className="h-full w-full object-cover" />
+                <img src={src} alt="Foto do Life Group" className="h-full w-full object-cover" />
               ) : (
                 <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
               )}
@@ -148,7 +148,7 @@ export default function CelulaConfig() {
                 {
                   onSuccess: () => {
                     queryClient.invalidateQueries({ queryKey: getGetCellConfigQueryKey() });
-                    toast({ title: "Nome da célula salvo" });
+                    toast({ title: "Nome do Life Group salvo" });
                   },
                   onError: () => toast({ variant: "destructive", title: "Erro ao salvar" }),
                 },
@@ -156,8 +156,8 @@ export default function CelulaConfig() {
             }}
           >
             <div className="space-y-2">
-              <Label htmlFor="cell-name">Nome da célula *</Label>
-              <Input id="cell-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Célula Vida Nova" required />
+              <Label htmlFor="cell-name">Nome do Life Group *</Label>
+              <Input id="cell-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Life Group Vida Nova" required />
             </div>
             <Button type="submit" disabled={updateConfig.isPending}>Salvar nome</Button>
           </form>

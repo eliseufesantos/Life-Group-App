@@ -17,4 +17,14 @@ export interface CurrentUser {
   categories: CurrentUserCategoriesItem[];
   /** @nullable */
   formationTrack?: string | null;
+  /**
+     * Birth date (YYYY-MM-DD)
+     * @nullable
+     */
+  birthDate: string | null;
+  /**
+     * Object path of the profile picture
+     * @nullable
+     */
+  avatarPath: string | null;
 }

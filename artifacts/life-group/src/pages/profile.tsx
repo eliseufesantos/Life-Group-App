@@ -1,25 +1,38 @@
-import { useGetCurrentUser, useGetMemberStats, getGetMemberStatsQueryKey } from "@workspace/api-client-react";
+import {
+  useGetCurrentUser,
+  useGetMemberStats,
+  getGetMemberStatsQueryKey,
+  getGetCurrentUserQueryKey,
+  getListMembersQueryKey,
+  useUpdateMember,
+  useRequestUploadUrl,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import {
   Users,
-  HeartHandshake,
   Link as LinkIcon,
   HandCoins,
   FileBarChart,
+  ClipboardList,
   Home,
   Bell,
   Settings,
+  Cake,
+  Camera,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
+import { ObjectUploader } from "@workspace/object-storage-web";
 
 import { ROLE_LABELS, CATEGORY_LABELS } from "@/lib/labels";
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
-}
+import { calcAge, formatBirthday } from "@/lib/people";
+import { MemberAvatar } from "@/components/people/member-avatar";
+import { useToast } from "@/hooks/use-toast";
 
 function MenuGroup({ title, items }: { title: string; items: { href: string; icon: LucideIcon; label: string; description: string }[] }) {
   if (items.length === 0) return null;
@@ -56,6 +69,62 @@ export default function Profile() {
   const { data: stats } = useGetMemberStats({
     query: { enabled: isLeaderOrAux, queryKey: getGetMemberStatsQueryKey() },
   });
+  const updateMember = useUpdateMember();
+  const requestUploadUrl = useRequestUploadUrl();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Data de nascimento (self-service): o próprio membro define/edita, enviando
+  // só birthDate no PATCH do próprio id — permitido para qualquer papel.
+  const [bdEditing, setBdEditing] = useState(false);
+  const [bdDraft, setBdDraft] = useState("");
+  const handleSaveBirthDate = () => {
+    if (!user) return;
+    updateMember.mutate(
+      { id: user.id, data: { birthDate: bdDraft || null } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
+          setBdEditing(false);
+          toast({ title: "Data de nascimento atualizada" });
+        },
+        onError: () =>
+          toast({ variant: "destructive", title: "Erro ao salvar a data" }),
+      },
+    );
+  };
+
+  // Upload da foto de perfil (self-service): presigned URL + PATCH no
+  // próprio id enviando apenas avatarPath — permitido para qualquer papel.
+  const handleGetUploadParams = async (file: any) => {
+    const res = await requestUploadUrl.mutateAsync({
+      data: { name: file.name, size: file.size, contentType: file.type },
+    });
+    file.meta = { ...file.meta, objectPath: res.objectPath };
+    return {
+      method: "PUT" as const,
+      url: res.uploadURL,
+      headers: { "Content-Type": file.type },
+    };
+  };
+
+  const handleAvatarUploadComplete = (result: any) => {
+    const objectPath = result?.successful?.[0]?.meta?.objectPath;
+    if (!objectPath || !user) return;
+    updateMember.mutate(
+      { id: user.id, data: { avatarPath: objectPath } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListMembersQueryKey() });
+          toast({ title: "Foto de perfil atualizada" });
+        },
+        onError: () =>
+          toast({ variant: "destructive", title: "Erro ao atualizar a foto" }),
+      },
+    );
+  };
 
   if (isLoading) {
     return (
@@ -67,9 +136,10 @@ export default function Profile() {
   }
   if (!user) return null;
 
+  const age = calcAge(user.birthDate);
+
   const communityItems = [
-    { href: "/membros", icon: Users, label: "Pessoas", description: "Membros e convidados da célula" },
-    { href: "/discipulado", icon: HeartHandshake, label: "Discipulado", description: "Vínculos de discipulado" },
+    { href: "/membros", icon: Users, label: "Pessoas", description: "Membros e convidados do Life Group" },
     ...(isLeaderOrAux
       ? [{ href: "/convites", icon: LinkIcon, label: "Convites", description: "Convide novas pessoas" }]
       : []),
@@ -79,8 +149,9 @@ export default function Profile() {
     { href: "/campanhas", icon: HandCoins, label: "Campanhas", description: "Doações e arrecadações" },
     ...(isLeaderOrAux
       ? [
+          { href: "/registros", icon: ClipboardList, label: "Registros", description: "Registros dos encontros" },
           { href: "/relatorios", icon: FileBarChart, label: "Relatórios", description: "Relatórios mensais e sob demanda" },
-          { href: "/celula", icon: Home, label: "Célula", description: "Nome, foto e reunião semanal" },
+          { href: "/celula", icon: Home, label: "Life Group", description: "Nome, foto e reunião semanal" },
         ]
       : []),
   ];
@@ -101,8 +172,22 @@ export default function Profile() {
     <div className="space-y-6 px-5 pt-2">
       {/* Cartão de identidade */}
       <section className="rounded-3xl border border-card-border bg-card p-6 text-center shadow-sm">
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[linear-gradient(135deg,hsl(217_91%_52%),hsl(226_80%_42%))] font-serif text-2xl font-extrabold text-white shadow-md">
-          {initials(user.name)}
+        <div className="relative mx-auto h-20 w-20">
+          <MemberAvatar
+            name={user.name}
+            avatarPath={user.avatarPath}
+            className="h-20 w-20 text-2xl shadow-md"
+          />
+          <ObjectUploader
+            onGetUploadParameters={handleGetUploadParams}
+            onComplete={handleAvatarUploadComplete}
+            maxNumberOfFiles={1}
+            maxFileSize={5 * 1024 * 1024}
+            buttonClassName="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-card text-primary shadow-md transition-colors active:bg-muted"
+          >
+            <Camera className="h-4 w-4" />
+            <span className="sr-only">Alterar foto de perfil</span>
+          </ObjectUploader>
         </div>
         <h1 className="mt-3 font-serif text-xl font-extrabold tracking-tight text-foreground">
           {user.name}
@@ -118,6 +203,48 @@ export default function Profile() {
             </span>
           ))}
         </div>
+        {bdEditing ? (
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <Input
+              type="date"
+              value={bdDraft}
+              onChange={(e) => setBdDraft(e.target.value)}
+              className="h-9 w-auto"
+              aria-label="Data de nascimento"
+            />
+            <Button size="sm" onClick={handleSaveBirthDate} disabled={updateMember.isPending}>
+              Salvar
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setBdEditing(false)}>
+              Cancelar
+            </Button>
+          </div>
+        ) : user.birthDate ? (
+          <button
+            type="button"
+            onClick={() => {
+              setBdDraft(user.birthDate ?? "");
+              setBdEditing(true);
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Cake className="h-3.5 w-3.5" />
+            {formatBirthday(user.birthDate)}
+            {age !== null && <span>· {age} anos</span>}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setBdDraft("");
+              setBdEditing(true);
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-primary transition-colors hover:underline"
+          >
+            <Cake className="h-3.5 w-3.5" />
+            Adicionar data de nascimento
+          </button>
+        )}
         {user.formationTrack && (
           <p className="mt-3 text-xs text-muted-foreground">
             Trilha de formação: <span className="font-semibold text-foreground">{user.formationTrack}</span>
@@ -143,7 +270,7 @@ export default function Profile() {
       )}
 
       <MenuGroup title="Comunidade" items={communityItems} />
-      <MenuGroup title="Célula" items={cellItems} />
+      <MenuGroup title="Life Group" items={cellItems} />
       <MenuGroup title="Conta" items={accountItems} />
     </div>
   );

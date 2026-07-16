@@ -5,12 +5,16 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AnnouncementOrigin } from './announcementOrigin';
 
 export interface Announcement {
   id: number;
   title: string;
   body: string;
+  /** Whether the aviso was posted manually or by an automation */
+  origin: AnnouncementOrigin;
   /** @nullable */
   authorName: string | null;
   createdAt: string;
+  updatedAt: string;
 }

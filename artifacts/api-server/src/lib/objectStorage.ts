@@ -29,6 +29,15 @@ export const objectStorageClient = new Storage({
   projectId: "",
 });
 
+/** Tipos de imagem servidos inline; qualquer outro vira download seguro. */
+const INLINE_SAFE_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+]);
+
 export class ObjectNotFoundError extends Error {
   constructor() {
     super("Object not found");
@@ -95,8 +104,19 @@ export class ObjectStorageService {
     const nodeStream = file.createReadStream();
     const webStream = Readable.toWeb(nodeStream) as ReadableStream;
 
+    // O content-type é definido pelo cliente no upload, então um membro pode
+    // subir `text/html` e registrá-lo como foto; servido no mesmo origin, isso
+    // executaria script na sessão de quem abrisse (XSS armazenado). Só tipos de
+    // imagem conhecidos são servidos inline; qualquer outro vira download
+    // (attachment) com o tipo neutralizado, e `nosniff` impede o navegador de
+    // adivinhar HTML a partir de um tipo declarado como imagem.
+    const rawType = (metadata.contentType as string) || "application/octet-stream";
+    const inlineSafe = INLINE_SAFE_IMAGE_TYPES.has(rawType.toLowerCase());
+
     const headers: Record<string, string> = {
-      "Content-Type": (metadata.contentType as string) || "application/octet-stream",
+      "Content-Type": inlineSafe ? rawType : "application/octet-stream",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Disposition": inlineSafe ? "inline" : "attachment",
       "Cache-Control": `${isPublic ? "public" : "private"}, max-age=${cacheTtlSec}`,
     };
     if (metadata.size) {

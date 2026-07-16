@@ -14,4 +14,7 @@ export interface PollInput {
      * @items.minLength 1
      */
   options: string[];
+  /** Optional expiration. After this instant the poll is deleted for good. */
+  endsAt?: Date;
+  anonymous?: boolean;
 }

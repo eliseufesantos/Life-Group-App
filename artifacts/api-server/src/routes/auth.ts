@@ -7,6 +7,7 @@ import {
   magicLinksTable,
 } from "@workspace/db";
 import {
+  CreateInviteBody,
   RegisterWithInviteBody,
   RequestMagicLinkBody,
   VerifyMagicLinkBody,
@@ -74,6 +75,7 @@ router.get(
       rows.map((c) => ({
         id: c.id,
         code: c.code,
+        name: c.name,
         createdAt: c.createdAt.toISOString(),
         expiresAt: c.expiresAt.toISOString(),
         used: c.usedAt !== null,
@@ -87,15 +89,26 @@ router.post(
   requireAuth,
   requirePrivileged,
   async (req: AuthedRequest, res): Promise<void> => {
+    const parsed = CreateInviteBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
     const code = inviteCode();
     const expiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 60 * 60 * 1000);
     const [invite] = await db
       .insert(convitesTable)
-      .values({ code, expiresAt, createdBy: req.user?.id ?? null })
+      .values({
+        code,
+        name: parsed.data.name,
+        expiresAt,
+        createdBy: req.user?.id ?? null,
+      })
       .returning();
     res.status(201).json({
       id: invite.id,
       code: invite.code,
+      name: invite.name,
       createdAt: invite.createdAt.toISOString(),
       expiresAt: invite.expiresAt.toISOString(),
       used: false,

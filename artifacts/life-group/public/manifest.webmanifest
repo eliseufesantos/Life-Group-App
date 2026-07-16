@@ -1,7 +1,7 @@
 {
-  "name": "Célula — Life Group",
-  "short_name": "Célula",
-  "description": "Aplicativo da célula: mural, calendário, membros, discipulado, campanhas e relatórios.",
+  "name": "Life Group",
+  "short_name": "Life Group",
+  "description": "Aplicativo do Life Group: mural, calendário, pessoas, discipulado, campanhas e relatórios.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

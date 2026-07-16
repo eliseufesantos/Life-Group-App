@@ -11,5 +11,6 @@ export interface TaskInput {
   title: string;
   /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   weekStart: string;
-  assignedTo?: number;
+  /** Tasks always belong to a specific person */
+  assignedTo: number;
 }

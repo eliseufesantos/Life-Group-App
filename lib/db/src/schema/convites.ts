@@ -6,6 +6,7 @@ import { usuariosTable } from "./usuarios";
 export const convitesTable = pgTable("convites", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),
+  name: text("name").notNull().default(""),
   createdBy: integer("created_by").references(() => usuariosTable.id, {
     onDelete: "set null",
   }),

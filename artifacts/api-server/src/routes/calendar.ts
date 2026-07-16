@@ -23,7 +23,7 @@ import { notifyUsers } from "../lib/push";
 
 const router: IRouter = Router();
 
-export const MEETING_TITLE = "Reunião da Célula";
+export const MEETING_TITLE = "Reunião do Life Group";
 
 interface CalendarEventDto {
   id: number | null;
